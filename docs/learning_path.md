@@ -2,6 +2,17 @@
 
 Le meilleur moyen d'apprendre ce projet est de faire de petites modifications visibles.
 
+## Étape 0 — Le point d’entrée
+
+Ouvre `core/app.tscn`, puis `core/app.gd`.
+
+À retenir :
+
+- `App` est la première scène chargée ;
+- elle instancie soit le menu, soit le match ;
+- le menu demande une partie avec un signal sans connaître le fichier du match ;
+- cette séparation évite que les écrans deviennent dépendants les uns des autres.
+
 ## Étape 1 — Scènes et nœuds
 
 Ouvre `match.tscn` et repère les instances de `FootballPitch`, `Referee`, `DemoPlayer`, `MatchBall` et les panneaux UI.
@@ -67,4 +78,3 @@ Exercice :
 ## Étape 7 — Première extension
 
 Duplique la ressource SIT-001 pour préparer SIT-002. Ne l'intègre pas immédiatement au match : commence par écrire la vérité de la situation, les choix corrects et le feedback.
-

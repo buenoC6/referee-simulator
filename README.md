@@ -10,6 +10,7 @@ Le but de ce dépôt est double :
 ## Ce qui est déjà jouable
 
 - déplacement de l'arbitre avec `ZQSD` ;
+- menu principal présentant le contexte et lançant une partie solo ;
 - courte action de match scénarisée ;
 - fenêtre de décision limitée dans le temps ;
 - coup de sifflet avec `Espace` ;
@@ -64,12 +65,14 @@ Les dossiers suivent les recommandations Godot : fichiers et dossiers en `snake_
 
 ## Parcours de lecture conseillé
 
-1. [`gameplay/match/match.tscn`](gameplay/match/match.tscn) — composition de la scène principale ;
-2. [`gameplay/match/match.gd`](gameplay/match/match.gd) — machine à états de la partie ;
-3. [`gameplay/referee/referee.gd`](gameplay/referee/referee.gd) — entrées et mouvement ;
-4. [`gameplay/incidents/incident_data.gd`](gameplay/incidents/incident_data.gd) — séparation entre données et comportement ;
-5. [`gameplay/evaluation/evaluation_service.gd`](gameplay/evaluation/evaluation_service.gd) — logique sans dépendance à une scène ;
-6. [`docs/architecture.md`](docs/architecture.md) — explication complète des responsabilités.
+1. [`core/app.tscn`](core/app.tscn) — point d'entrée et changement d'écran ;
+2. [`ui/main_menu/main_menu.tscn`](ui/main_menu/main_menu.tscn) — menu et contexte joueur ;
+3. [`gameplay/match/match.tscn`](gameplay/match/match.tscn) — composition du match ;
+4. [`gameplay/match/match.gd`](gameplay/match/match.gd) — machine à états de la partie ;
+5. [`gameplay/referee/referee.gd`](gameplay/referee/referee.gd) — entrées et mouvement ;
+6. [`gameplay/incidents/incident_data.gd`](gameplay/incidents/incident_data.gd) — séparation entre données et comportement ;
+7. [`gameplay/evaluation/evaluation_service.gd`](gameplay/evaluation/evaluation_service.gd) — logique sans dépendance à une scène ;
+8. [`docs/architecture.md`](docs/architecture.md) — explication complète des responsabilités.
 
 ## Philosophie du prototype
 
@@ -91,4 +94,3 @@ Le workflow GitHub Actions importe le projet et exécute le test headless à cha
 ## Documentation produit
 
 La vision, le MVP, les situations et la roadmap sont maintenus dans l'espace Confluence **Referee Simulator**. Le dépôt documente l'implémentation et la manière de lancer le jeu.
-

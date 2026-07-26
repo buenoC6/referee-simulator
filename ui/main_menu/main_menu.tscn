@@ -1,0 +1,180 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/main_menu/main_menu.gd" id="1_menu"]
+[ext_resource type="Script" path="res://ui/main_menu/menu_background.gd" id="2_background"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="3_theme"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_background")
+
+[node name="PageMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 72.0
+offset_top = 58.0
+offset_right = -72.0
+offset_bottom = -44.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("3_theme")
+
+[node name="PageColumn" type="VBoxContainer" parent="PageMargin"]
+layout_mode = 2
+
+[node name="TopRow" type="HBoxContainer" parent="PageMargin/PageColumn"]
+layout_mode = 2
+
+[node name="Brand" type="Label" parent="PageMargin/PageColumn/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
+theme_override_font_sizes/font_size = 18
+text = "REFEREE SIMULATOR"
+
+[node name="TopSpacer" type="Control" parent="PageMargin/PageColumn/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Version" type="Label" parent="PageMargin/PageColumn/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.482353, 0.552941, 0.635294, 1)
+theme_override_font_sizes/font_size = 15
+text = "PROTOTYPE 0.1 · GODOT 4.7.1"
+
+[node name="MainSpacerTop" type="Control" parent="PageMargin/PageColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ContentRow" type="HBoxContainer" parent="PageMargin/PageColumn"]
+layout_mode = 2
+theme_override_constants/separation = 72
+
+[node name="ContextColumn" type="VBoxContainer" parent="PageMargin/PageColumn/ContentRow"]
+custom_minimum_size = Vector2(650, 0)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Eyebrow" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
+text = "PRENDS LA BONNE DÉCISION"
+
+[node name="Title" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "Le match dépend\nde ton jugement."
+
+[node name="Description" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn"]
+custom_minimum_size = Vector2(590, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.741176, 0.8, 0.866667, 1)
+theme_override_font_sizes/font_size = 20
+text = "Incarne l’arbitre, suis l’action et place-toi au bon endroit.\nQuand un incident survient, tu n’as que quelques secondes pour\nsiffler, choisir la reprise et prendre une sanction."
+
+[node name="PillRow" type="HBoxContainer" parent="PageMargin/PageColumn/ContentRow/ContextColumn"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="DurationPill" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn/PillRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
+text = "●  3–5 MINUTES"
+
+[node name="Separator1" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn/PillRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.27451, 0.345098, 0.431373, 1)
+text = "│"
+
+[node name="ScenarioPill" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn/PillRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
+text = "1 SITUATION"
+
+[node name="Separator2" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn/PillRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.27451, 0.345098, 0.431373, 1)
+text = "│"
+
+[node name="InputPill" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn/PillRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
+text = "CLAVIER"
+
+[node name="MenuCard" type="PanelContainer" parent="PageMargin/PageColumn/ContentRow"]
+custom_minimum_size = Vector2(370, 0)
+layout_mode = 2
+
+[node name="MenuColumn" type="VBoxContainer" parent="PageMargin/PageColumn/ContentRow/MenuCard"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ModeTitle" type="Label" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Choisir un mode"
+
+[node name="ModeDescription" type="Label" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
+text = "Le prototype propose une première\nsituation d’entraînement."
+
+[node name="SoloButton" type="Button" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+text = "PARTIE SOLO  →"
+alignment = 0
+
+[node name="SoloDetail" type="Label" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.482353, 0.552941, 0.635294, 1)
+theme_override_font_sizes/font_size = 14
+text = "SIT-001 · Contact au milieu du terrain"
+
+[node name="Separator" type="HSeparator" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
+layout_mode = 2
+
+[node name="ControlsTitle" type="Label" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
+theme_override_font_sizes/font_size = 15
+text = "COMMANDES"
+
+[node name="Controls" type="Label" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
+theme_override_font_sizes/font_size = 15
+text = "ZQSD / Flèches   Se déplacer\nEspace                 Siffler\n1–6 + Entrée       Décider"
+
+[node name="QuitButton" type="Button" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Quitter"
+
+[node name="MainSpacerBottom" type="Control" parent="PageMargin/PageColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Footer" type="Label" parent="PageMargin/PageColumn"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.482353, 0.552941, 0.635294, 1)
+theme_override_font_sizes/font_size = 14
+text = "Prototype d’apprentissage · Les règles et le contenu évolueront avec les prochains playtests."
+

@@ -43,6 +43,8 @@ DecisionPanel
 
 | Élément | Responsabilité | Ne doit pas faire |
 | --- | --- | --- |
+| `app.gd` | Afficher le menu ou le match et gérer leur cycle de vie | Contenir la logique du match |
+| `main_menu.gd` | Présenter le contexte et émettre les intentions du joueur | Charger directement la scène de match |
 | `match.gd` | Orchestrer les phases et connecter les composants | Connaître les détails du dessin des acteurs |
 | `referee.gd` | Lire les entrées et déplacer l'arbitre | Calculer la note |
 | `incident_director.gd` | Ouvrir et fermer la fenêtre de décision | Afficher l'interface |
@@ -53,6 +55,8 @@ DecisionPanel
 ## Machine à états
 
 ```text
+MENU PRINCIPAL
+  ↓ partie solo
 INTRO
   ↓
 BUILDUP
@@ -62,8 +66,8 @@ INCIDENT_WINDOW ── expiration ──┐
 DECISION                        │
   ↓ validation                  │
 RESULTS ←───────────────────────┘
-  ↓ rejouer
-INTRO
+  ├─ rejouer → INTRO
+  └─ menu → MENU PRINCIPAL
 ```
 
 Une machine à états explicite évite de multiplier des booléens difficiles à combiner comme `is_started`, `is_paused`, `has_incident` et `showing_results`.
@@ -89,4 +93,3 @@ Quand le prototype sera validé :
 - réseau.
 
 Ces outils peuvent être utiles, mais ajouteraient des concepts avant qu'un besoin du prototype ne les justifie.
-

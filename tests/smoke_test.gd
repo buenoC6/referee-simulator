@@ -4,6 +4,7 @@ const IncidentDataClass = preload("res://gameplay/incidents/incident_data.gd")
 const EvaluationServiceClass = preload(
 	"res://gameplay/evaluation/evaluation_service.gd"
 )
+const AppScene: PackedScene = preload("res://core/app.tscn")
 
 var failures: int = 0
 
@@ -14,6 +15,7 @@ func _init() -> void:
 
 func _run() -> void:
 	print("Running Referee Simulator smoke tests...")
+	_test_app_navigates_between_menu_and_solo_match()
 	_test_perfect_decision_scores_one_hundred()
 	_test_wrong_decisions_keep_observation_points()
 
@@ -23,6 +25,19 @@ func _run() -> void:
 	else:
 		push_error("FAIL: %d smoke test assertion(s) failed." % failures)
 		quit(1)
+
+
+func _test_app_navigates_between_menu_and_solo_match() -> void:
+	var app = AppScene.instantiate()
+	root.add_child(app)
+
+	_expect_equal(app.current_screen is MainMenu, true, "app starts on main menu")
+	app.current_screen.solo_requested.emit()
+	_expect_equal(app.current_screen is RefereeMatch, true, "solo opens a match")
+	app.current_screen.main_menu_requested.emit()
+	_expect_equal(app.current_screen is MainMenu, true, "match returns to menu")
+
+	app.free()
 
 
 func _test_perfect_decision_scores_one_hundred() -> void:

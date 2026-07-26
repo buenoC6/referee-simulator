@@ -2,6 +2,7 @@ extends CanvasLayer
 class_name ResultsPanel
 
 signal replay_requested
+signal main_menu_requested
 
 @onready var grade_label: Label = %GradeLabel
 @onready var total_label: Label = %TotalLabel
@@ -9,10 +10,12 @@ signal replay_requested
 @onready var feedback_label: Label = %FeedbackLabel
 @onready var explanation_label: Label = %ExplanationLabel
 @onready var replay_button: Button = %ReplayButton
+@onready var main_menu_button: Button = %MainMenuButton
 
 
 func _ready() -> void:
 	replay_button.pressed.connect(func() -> void: replay_requested.emit())
+	main_menu_button.pressed.connect(func() -> void: main_menu_requested.emit())
 	visible = false
 
 
@@ -59,4 +62,3 @@ func _grade_for(score: int) -> String:
 	if score >= 55:
 		return "DÉCISION PERFECTIBLE"
 	return "ACTION À REVOIR"
-

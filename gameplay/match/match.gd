@@ -1,6 +1,8 @@
 extends Node2D
 class_name RefereeMatch
 
+signal main_menu_requested
+
 enum MatchPhase {
 	INTRO,
 	BUILDUP,
@@ -47,6 +49,7 @@ func _ready() -> void:
 	incident_director.incident_expired.connect(_on_incident_expired)
 	decision_panel.decision_submitted.connect(_on_decision_submitted)
 	results_panel.replay_requested.connect(_start_round)
+	results_panel.main_menu_requested.connect(func() -> void: main_menu_requested.emit())
 	_start_round()
 
 
