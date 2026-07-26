@@ -7,6 +7,7 @@ signal decision_submitted(
 )
 
 @onready var situation_label: Label = %SituationLabel
+@onready var evidence_label: Label = %EvidenceLabel
 @onready var selection_label: Label = %SelectionLabel
 @onready var submit_button: Button = %SubmitButton
 
@@ -44,8 +45,10 @@ func _ready() -> void:
 	visible = false
 
 
-func show_for(incident: IncidentData) -> void:
+func show_for(incident: IncidentData, evidence: String = "") -> void:
 	situation_label.text = "%s · %s" % [incident.incident_id, incident.title]
+	evidence_label.text = evidence
+	evidence_label.visible = not evidence.is_empty()
 	technical_choice = -1
 	discipline_choice = -1
 	_reset_buttons()
@@ -133,4 +136,3 @@ func _submit() -> void:
 	if submit_button.disabled:
 		return
 	decision_submitted.emit(technical_choice, discipline_choice)
-

@@ -1,0 +1,48 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://gameplay/perspective/referee_perspective_match.gd" id="1_match"]
+[ext_resource type="Script" path="res://gameplay/perspective/referee_controller_3d.gd" id="2_referee"]
+[ext_resource type="PackedScene" path="res://gameplay/perspective/perspective_hud.tscn" id="3_hud"]
+[ext_resource type="PackedScene" path="res://gameplay/perspective/officiating_panel.tscn" id="4_officiating"]
+[ext_resource type="PackedScene" path="res://ui/results_panel.tscn" id="5_results"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleReferee"]
+radius = 0.32
+height = 1.75
+
+[sub_resource type="StandardMaterial3D" id="BallPlaceholderMaterial"]
+albedo_color = Color(0.96, 0.97, 0.99, 1)
+roughness = 0.72
+
+[node name="RefereePerspectiveMatch" type="Node3D"]
+script = ExtResource("1_match")
+
+[node name="World" type="Node3D" parent="."]
+
+[node name="Actors" type="Node3D" parent="."]
+
+[node name="Ball" type="MeshInstance3D" parent="."]
+material_override = SubResource("BallPlaceholderMaterial")
+
+[node name="Referee" type="CharacterBody3D" parent="."]
+position = Vector3(0, 0, 22)
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("2_referee")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Referee"]
+position = Vector3(0, 0.875, 0)
+shape = SubResource("CapsuleReferee")
+
+[node name="Camera3D" type="Camera3D" parent="Referee"]
+position = Vector3(0, 2.04, 0)
+current = true
+fov = 76.0
+near = 0.08
+far = 180.0
+
+[node name="PerspectiveHud" parent="." instance=ExtResource("3_hud")]
+
+[node name="OfficiatingPanel" parent="." instance=ExtResource("4_officiating")]
+
+[node name="ResultsPanel" parent="." instance=ExtResource("5_results")]

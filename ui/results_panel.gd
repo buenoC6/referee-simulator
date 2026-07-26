@@ -20,6 +20,10 @@ func _ready() -> void:
 
 
 func show_result(result: Dictionary) -> void:
+	if result.get("tension_mode", false):
+		_show_tension_result(result)
+		return
+
 	var total_score: int = result["total_score"]
 	grade_label.text = _grade_for(total_score)
 	total_label.text = "%d / 100" % total_score
@@ -30,6 +34,33 @@ func show_result(result: Dictionary) -> void:
 			result["discipline_score"],
 			result["positioning_score"],
 			result["response_score"],
+		]
+	)
+
+	var feedback_lines: PackedStringArray = result["feedback"]
+	var formatted_feedback := PackedStringArray()
+	for feedback_line in feedback_lines:
+		formatted_feedback.append("• %s" % feedback_line)
+	feedback_label.text = "\n".join(formatted_feedback)
+	explanation_label.text = result["explanation"]
+	visible = true
+
+
+func _show_tension_result(result: Dictionary) -> void:
+	grade_label.text = _sentence_case(str(result["outcome"]))
+	var highest_peak := maxi(
+		int(result["blue_peak_tension"]),
+		int(result["red_peak_tension"])
+	)
+	total_label.text = "Tension maximale · %d%%" % highest_peak
+	breakdown_label.text = (
+		"Bleus %d%% (pic %d) · Rouges %d%% (pic %d) · %s"
+		% [
+			result["blue_tension"],
+			result["blue_peak_tension"],
+			result["red_tension"],
+			result["red_peak_tension"],
+			result["importance_label"],
 		]
 	)
 
@@ -56,9 +87,16 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _grade_for(score: int) -> String:
 	if score >= 90:
-		return "EXCELLENTE DÉCISION"
+		return "Excellent arbitrage"
 	if score >= 80:
-		return "BON ARBITRAGE"
+		return "Bon arbitrage"
 	if score >= 60:
-		return "DÉCISION PERFECTIBLE"
-	return "ACTION À REVOIR"
+		return "Match perfectible"
+	return "Match à revoir"
+
+
+func _sentence_case(text: String) -> String:
+	var clean := text.strip_edges().to_lower()
+	if clean.is_empty():
+		return clean
+	return clean.left(1).to_upper() + clean.substr(1)

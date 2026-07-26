@@ -1,0 +1,328 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://gameplay/perspective/perspective_hud.gd" id="1_hud"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2_theme"]
+[ext_resource type="Script" path="res://gameplay/perspective/referee_minimap_2d.gd" id="3_minimap"]
+
+[sub_resource type="StyleBoxFlat" id="TensionBackground"]
+bg_color = Color(0.12, 0.129412, 0.109804, 0.92)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="BlueTensionFill"]
+bg_color = Color(0.25098, 0.509804, 0.886275, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="RedTensionFill"]
+bg_color = Color(0.878431, 0.309804, 0.34902, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="ScorePanel"]
+bg_color = Color(0.027451, 0.0313726, 0.027451, 0.88)
+corner_radius_top_left = 13
+corner_radius_top_right = 13
+corner_radius_bottom_right = 13
+corner_radius_bottom_left = 13
+content_margin_left = 22.0
+content_margin_top = 11.0
+content_margin_right = 22.0
+content_margin_bottom = 11.0
+
+[node name="PerspectiveHud" type="CanvasLayer"]
+layer = 8
+script = ExtResource("1_hud")
+
+[node name="ContextPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+offset_left = 24.0
+offset_top = 22.0
+offset_right = 430.0
+offset_bottom = 96.0
+theme = ExtResource("2_theme")
+
+[node name="Column" type="VBoxContainer" parent="ContextPanel"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="PhaseLabel" type="Label" parent="ContextPanel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Mise en place"
+
+[node name="ObjectiveLabel" type="Label" parent="ContextPanel/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.737255, 0.74902, 0.682353, 1)
+theme_override_font_sizes/font_size = 13
+text = "Prends tes repères, puis siffle le coup d’envoi."
+text_overrun_behavior = 3
+
+[node name="VenueLabel" type="Label" parent="ContextPanel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.517647, 0.533333, 0.478431, 1)
+theme_override_font_sizes/font_size = 11
+text = "Stade du Parc · Bruxelles"
+
+[node name="MatchBar" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -250.0
+offset_top = 22.0
+offset_right = 250.0
+offset_bottom = 74.0
+theme_override_styles/panel = SubResource("ScorePanel")
+
+[node name="MatchLabel" type="Label" parent="MatchBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme = ExtResource("2_theme")
+theme_override_font_sizes/font_size = 16
+text = "00′   BLEUS 0 — 0 ROUGES"
+horizontal_alignment = 1
+
+[node name="TensionPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -324.0
+offset_top = 22.0
+offset_right = -24.0
+offset_bottom = 126.0
+theme = ExtResource("2_theme")
+
+[node name="Column" type="VBoxContainer" parent="TensionPanel"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Header" type="HBoxContainer" parent="TensionPanel/Column"]
+layout_mode = 2
+
+[node name="ImportanceLabel" type="Label" parent="TensionPanel/Column/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.572549, 0.588235, 0.529412, 1)
+theme_override_font_sizes/font_size = 11
+text = "Phase de poules"
+
+[node name="ControlLabel" type="Label" parent="TensionPanel/Column/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.52549, 0.937255, 0.67451, 1)
+theme_override_font_sizes/font_size = 11
+text = "Sous contrôle"
+horizontal_alignment = 2
+
+[node name="BlueRow" type="HBoxContainer" parent="TensionPanel/Column"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="BlueTeamLabel" type="Label" parent="TensionPanel/Column/BlueRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.52549, 0.756863, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "BLEUS"
+text_overrun_behavior = 3
+
+[node name="BlueTensionBar" type="ProgressBar" parent="TensionPanel/Column/BlueRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 9)
+layout_mode = 2
+size_flags_horizontal = 3
+value = 7.0
+show_percentage = false
+theme_override_styles/background = SubResource("TensionBackground")
+theme_override_styles/fill = SubResource("BlueTensionFill")
+
+[node name="BlueTensionValue" type="Label" parent="TensionPanel/Column/BlueRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "7%"
+horizontal_alignment = 2
+
+[node name="RedRow" type="HBoxContainer" parent="TensionPanel/Column"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="RedTeamLabel" type="Label" parent="TensionPanel/Column/RedRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.54902, 0.584314, 1)
+theme_override_font_sizes/font_size = 11
+text = "ROUGES"
+text_overrun_behavior = 3
+
+[node name="RedTensionBar" type="ProgressBar" parent="TensionPanel/Column/RedRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 9)
+layout_mode = 2
+size_flags_horizontal = 3
+value = 7.0
+show_percentage = false
+theme_override_styles/background = SubResource("TensionBackground")
+theme_override_styles/fill = SubResource("RedTensionFill")
+
+[node name="RedTensionValue" type="Label" parent="TensionPanel/Column/RedRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+text = "7%"
+horizontal_alignment = 2
+
+[node name="LiveReading" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+
+[node name="DistanceLabel" type="Label" parent="LiveReading"]
+unique_name_in_owner = true
+text = "Distance 0 m"
+
+[node name="ViewLabel" type="Label" parent="LiveReading"]
+unique_name_in_owner = true
+text = "Dans l’axe"
+
+[node name="Crosshair" type="Label" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -14.0
+offset_top = -18.0
+offset_right = 14.0
+offset_bottom = 18.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.58)
+theme_override_font_sizes/font_size = 23
+text = "·"
+horizontal_alignment = 1
+
+[node name="AssistantSignalLabel" type="Label" parent="."]
+unique_name_in_owner = true
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -250.0
+offset_top = 88.0
+offset_right = 250.0
+offset_bottom = 122.0
+theme = ExtResource("2_theme")
+theme_override_colors/font_color = Color(0.917647, 0.843137, 0.603922, 1)
+theme_override_font_sizes/font_size = 14
+text = "Assistant · Hors-jeu"
+horizontal_alignment = 1
+
+[node name="RefereeMinimap" type="Control" parent="."]
+unique_name_in_owner = true
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -218.0
+offset_top = 158.0
+offset_right = -24.0
+offset_bottom = 474.0
+mouse_filter = 2
+modulate = Color(1, 1, 1, 0.84)
+script = ExtResource("3_minimap")
+
+[node name="IncidentPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -270.0
+offset_top = 92.0
+offset_right = 270.0
+offset_bottom = 154.0
+theme = ExtResource("2_theme")
+
+[node name="Row" type="HBoxContainer" parent="IncidentPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="IncidentTitle" type="Label" parent="IncidentPanel/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.917647, 0.843137, 0.603922, 1)
+theme_override_font_sizes/font_size = 14
+text = "Contact"
+
+[node name="IncidentDetail" type="Label" parent="IncidentPanel/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.737255, 0.74902, 0.682353, 1)
+theme_override_font_sizes/font_size = 13
+text = "Espace pour siffler"
+
+[node name="BallDirectionLabel" type="Label" parent="."]
+unique_name_in_owner = true
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -210.0
+offset_top = -84.0
+offset_right = 210.0
+offset_bottom = -56.0
+grow_vertical = 0
+theme = ExtResource("2_theme")
+theme_override_colors/font_color = Color(0.917647, 0.843137, 0.603922, 0.92)
+theme_override_font_sizes/font_size = 14
+text = "Ballon devant · 0 m"
+horizontal_alignment = 1
+
+[node name="Bottom" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -340.0
+offset_top = -48.0
+offset_right = 340.0
+offset_bottom = -14.0
+theme = ExtResource("2_theme")
+
+[node name="ControlsLabel" type="Label" parent="Bottom"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.686275, 0.698039, 0.635294, 1)
+theme_override_font_sizes/font_size = 12
+text = "ZQSD pour courir · Souris pour regarder · Espace pour siffler"
+horizontal_alignment = 1
+
+[node name="VignetteTop" type="ColorRect" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 6.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.00784314, 0.0117647, 0.00784314, 0.38)
+
+[node name="VignetteBottom" type="ColorRect" parent="."]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -6.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.00784314, 0.0117647, 0.00784314, 0.38)

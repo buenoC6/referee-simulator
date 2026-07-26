@@ -13,7 +13,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.0156863, 0.0235294, 0.0392157, 0.82)
+color = Color(0.0156863, 0.0196078, 0.0156863, 0.9)
 mouse_filter = 0
 
 [node name="Center" type="CenterContainer" parent="."]
@@ -25,77 +25,82 @@ grow_vertical = 2
 theme = ExtResource("2_theme")
 
 [node name="Card" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(760, 0)
+custom_minimum_size = Vector2(640, 0)
 layout_mode = 2
 
 [node name="Column" type="VBoxContainer" parent="Center/Card"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="Eyebrow" type="Label" parent="Center/Card/Column"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
-text = "RAPPORT DE SITUATION"
+theme_override_colors/font_color = Color(0.917647, 0.843137, 0.603922, 1)
+theme_override_font_sizes/font_size = 13
+text = "Fin du match"
 horizontal_alignment = 1
 
 [node name="GradeLabel" type="Label" parent="Center/Card/Column"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "BON ARBITRAGE"
+theme_override_font_sizes/font_size = 30
+text = "Match maîtrisé"
 horizontal_alignment = 1
 
 [node name="TotalLabel" type="Label" parent="Center/Card/Column"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
-theme_override_font_sizes/font_size = 42
-text = "85 / 100"
+theme_override_colors/font_color = Color(0.917647, 0.843137, 0.603922, 1)
+theme_override_font_sizes/font_size = 36
+text = "Tension maximale · 48%"
 horizontal_alignment = 1
 
 [node name="BreakdownLabel" type="Label" parent="Center/Card/Column"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
-text = "Décision 40/40 · Discipline 20/20 · Position 20/25 · Délai 10/15"
+theme_override_colors/font_color = Color(0.603922, 0.619608, 0.560784, 1)
+theme_override_font_sizes/font_size = 13
+text = "Bleus 24% · Rouges 31% · Phase de poules"
 horizontal_alignment = 1
 
-[node name="Separator" type="HSeparator" parent="Center/Card/Column"]
+[node name="BodyGap" type="Control" parent="Center/Card/Column"]
+custom_minimum_size = Vector2(0, 8)
 layout_mode = 2
 
 [node name="FeedbackLabel" type="Label" parent="Center/Card/Column"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 112)
+custom_minimum_size = Vector2(0, 92)
 layout_mode = 2
-text = "• Feedback"
+theme_override_colors/font_color = Color(0.827451, 0.823529, 0.764706, 1)
+theme_override_font_sizes/font_size = 14
+text = "• Le match est resté sous contrôle."
 autowrap_mode = 2
-
-[node name="ExplanationTitle" type="Label" parent="Center/Card/Column"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
-text = "Pourquoi ?"
 
 [node name="ExplanationLabel" type="Label" parent="Center/Card/Column"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.760784, 0.811765, 0.870588, 1)
-text = "Explication réglementaire."
+theme_override_colors/font_color = Color(0.572549, 0.588235, 0.529412, 1)
+theme_override_font_sizes/font_size = 12
+text = "Tes décisions ont limité la frustration des deux équipes."
 autowrap_mode = 2
+
+[node name="ActionGap" type="Control" parent="Center/Card/Column"]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
 
 [node name="Actions" type="HBoxContainer" parent="Center/Card/Column"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="MainMenuButton" type="Button" parent="Center/Card/Column/Actions"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Menu principal"
+text = "Menu"
 
 [node name="ReplayButton" type="Button" parent="Center/Card/Column/Actions"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Rejouer la situation · R"
+text = "Rejouer"
