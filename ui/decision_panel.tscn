@@ -1,0 +1,121 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/decision_panel.gd" id="1_decision"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2_theme"]
+
+[node name="DecisionPanel" type="CanvasLayer"]
+layer = 20
+script = ExtResource("1_decision")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0156863, 0.0235294, 0.0392157, 0.76)
+mouse_filter = 0
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="Card" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(690, 0)
+layout_mode = 2
+
+[node name="Column" type="VBoxContainer" parent="Center/Card"]
+layout_mode = 2
+theme_override_constants/separation = 13
+
+[node name="Eyebrow" type="Label" parent="Center/Card/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
+text = "DÉCISION ARBITRALE"
+horizontal_alignment = 1
+
+[node name="SituationLabel" type="Label" parent="Center/Card/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 25
+text = "SIT-001 · Contact"
+horizontal_alignment = 1
+
+[node name="TechnicalTitle" type="Label" parent="Center/Card/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
+text = "1. Décision technique"
+
+[node name="TechnicalButtons" type="HBoxContainer" parent="Center/Card/Column"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PlayOnButton" type="Button" parent="Center/Card/Column/TechnicalButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "[1] Laisser jouer"
+
+[node name="FreeKickButton" type="Button" parent="Center/Card/Column/TechnicalButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "[2] Coup franc direct"
+
+[node name="PenaltyButton" type="Button" parent="Center/Card/Column/TechnicalButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "[3] Penalty"
+
+[node name="DisciplineTitle" type="Label" parent="Center/Card/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
+text = "2. Sanction disciplinaire"
+
+[node name="DisciplineButtons" type="HBoxContainer" parent="Center/Card/Column"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="NoCardButton" type="Button" parent="Center/Card/Column/DisciplineButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "[4] Aucun carton"
+
+[node name="YellowCardButton" type="Button" parent="Center/Card/Column/DisciplineButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "[5] Carton jaune"
+
+[node name="RedCardButton" type="Button" parent="Center/Card/Column/DisciplineButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "[6] Carton rouge"
+
+[node name="SelectionLabel" type="Label" parent="Center/Card/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
+text = "Choisis une décision technique et une sanction."
+horizontal_alignment = 1
+
+[node name="SubmitButton" type="Button" parent="Center/Card/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+disabled = true
+text = "Valider la décision · Entrée"
+

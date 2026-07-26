@@ -1,0 +1,19 @@
+# Godot 4 generates this cache locally.
+.godot/
+
+# Local/editor files.
+.vscode/
+.idea/
+*.tmp
+*.bak
+*~
+
+# Builds and exports are reproducible.
+builds/
+exports/
+
+# OS files.
+.DS_Store
+Thumbs.db
+desktop.ini
+

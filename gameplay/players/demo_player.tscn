@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://gameplay/players/demo_player.gd" id="1_player"]
+
+[sub_resource type="CircleShape2D" id="CircleShapePlayer"]
+radius = 16.0
+
+[node name="DemoPlayer" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("1_player")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShapePlayer")
+

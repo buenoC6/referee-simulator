@@ -1,0 +1,59 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://gameplay/match/match.gd" id="1_match"]
+[ext_resource type="PackedScene" path="res://gameplay/field/football_pitch.tscn" id="2_pitch"]
+[ext_resource type="PackedScene" path="res://gameplay/referee/referee.tscn" id="3_referee"]
+[ext_resource type="PackedScene" path="res://gameplay/players/demo_player.tscn" id="4_player"]
+[ext_resource type="PackedScene" path="res://gameplay/ball/ball.tscn" id="5_ball"]
+[ext_resource type="Script" path="res://gameplay/incidents/incident_director.gd" id="6_director"]
+[ext_resource type="Script" path="res://gameplay/incidents/incident_marker.gd" id="7_marker"]
+[ext_resource type="PackedScene" path="res://ui/match_hud.tscn" id="8_hud"]
+[ext_resource type="PackedScene" path="res://ui/decision_panel.tscn" id="9_decision"]
+[ext_resource type="PackedScene" path="res://ui/results_panel.tscn" id="10_results"]
+
+[node name="Match" type="Node2D"]
+script = ExtResource("1_match")
+
+[node name="FootballPitch" parent="." instance=ExtResource("2_pitch")]
+
+[node name="BlueAttacker" parent="." instance=ExtResource("4_player")]
+position = Vector2(410, 330)
+team_color = Color(0.133333, 0.482353, 1, 1)
+shirt_number = 9
+
+[node name="BlueSupport" parent="." instance=ExtResource("4_player")]
+position = Vector2(380, 485)
+team_color = Color(0.133333, 0.482353, 1, 1)
+shirt_number = 7
+
+[node name="RedDefender" parent="." instance=ExtResource("4_player")]
+position = Vector2(920, 332)
+team_color = Color(0.913725, 0.215686, 0.270588, 1)
+shirt_number = 4
+
+[node name="RedSupport" parent="." instance=ExtResource("4_player")]
+position = Vector2(910, 205)
+team_color = Color(0.913725, 0.215686, 0.270588, 1)
+shirt_number = 6
+
+[node name="MatchBall" parent="." instance=ExtResource("5_ball")]
+position = Vector2(432, 336)
+
+[node name="Referee" parent="." instance=ExtResource("3_referee")]
+position = Vector2(630, 565)
+z_index = 4
+
+[node name="IncidentMarker" type="Node2D" parent="."]
+visible = false
+z_index = 8
+script = ExtResource("7_marker")
+
+[node name="IncidentDirector" type="Node" parent="."]
+script = ExtResource("6_director")
+
+[node name="MatchHud" parent="." instance=ExtResource("8_hud")]
+
+[node name="DecisionPanel" parent="." instance=ExtResource("9_decision")]
+
+[node name="ResultsPanel" parent="." instance=ExtResource("10_results")]
+

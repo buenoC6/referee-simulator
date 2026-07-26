@@ -1,0 +1,89 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/results_panel.gd" id="1_results"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2_theme"]
+
+[node name="ResultsPanel" type="CanvasLayer"]
+layer = 30
+script = ExtResource("1_results")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0156863, 0.0235294, 0.0392157, 0.82)
+mouse_filter = 0
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="Card" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
+
+[node name="Column" type="VBoxContainer" parent="Center/Card"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Eyebrow" type="Label" parent="Center/Card/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
+text = "RAPPORT DE SITUATION"
+horizontal_alignment = 1
+
+[node name="GradeLabel" type="Label" parent="Center/Card/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "BON ARBITRAGE"
+horizontal_alignment = 1
+
+[node name="TotalLabel" type="Label" parent="Center/Card/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
+theme_override_font_sizes/font_size = 42
+text = "85 / 100"
+horizontal_alignment = 1
+
+[node name="BreakdownLabel" type="Label" parent="Center/Card/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
+text = "Décision 40/40 · Discipline 20/20 · Position 20/25 · Délai 10/15"
+horizontal_alignment = 1
+
+[node name="Separator" type="HSeparator" parent="Center/Card/Column"]
+layout_mode = 2
+
+[node name="FeedbackLabel" type="Label" parent="Center/Card/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 112)
+layout_mode = 2
+text = "• Feedback"
+autowrap_mode = 2
+
+[node name="ExplanationTitle" type="Label" parent="Center/Card/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
+text = "Pourquoi ?"
+
+[node name="ExplanationLabel" type="Label" parent="Center/Card/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.760784, 0.811765, 0.870588, 1)
+text = "Explication réglementaire."
+autowrap_mode = 2
+
+[node name="ReplayButton" type="Button" parent="Center/Card/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Rejouer la situation · R"

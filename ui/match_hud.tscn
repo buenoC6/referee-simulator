@@ -1,0 +1,102 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/match_hud.gd" id="1_hud"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2_theme"]
+
+[node name="MatchHud" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_hud")
+
+[node name="TopMargin" type="MarginContainer" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 20.0
+offset_right = -24.0
+offset_bottom = 94.0
+theme = ExtResource("2_theme")
+
+[node name="TopBar" type="PanelContainer" parent="TopMargin"]
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="TopMargin/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="TopMargin/TopBar/Row"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
+theme_override_font_sizes/font_size = 22
+text = "REFEREE SIMULATOR"
+
+[node name="Spacer" type="Control" parent="TopMargin/TopBar/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PhaseLabel" type="Label" parent="TopMargin/TopBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
+text = "Préparation"
+
+[node name="Separator" type="VSeparator" parent="TopMargin/TopBar/Row"]
+layout_mode = 2
+
+[node name="ClockLabel" type="Label" parent="TopMargin/TopBar/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "00:00"
+
+[node name="BannerMargin" type="MarginContainer" parent="."]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 390.0
+offset_top = 112.0
+offset_right = -390.0
+offset_bottom = 206.0
+theme = ExtResource("2_theme")
+
+[node name="BannerPanel" type="PanelContainer" parent="BannerMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Column" type="VBoxContainer" parent="BannerMargin/BannerPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BannerTitle" type="Label" parent="BannerMargin/BannerPanel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.835294, 0.333333, 1)
+theme_override_font_sizes/font_size = 21
+text = "INCIDENT"
+horizontal_alignment = 1
+
+[node name="BannerDetail" type="Label" parent="BannerMargin/BannerPanel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Espace pour siffler"
+horizontal_alignment = 1
+
+[node name="ControlsMargin" type="MarginContainer" parent="."]
+anchors_preset = 12
+anchor_right = 1.0
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 270.0
+offset_top = -74.0
+offset_right = -270.0
+offset_bottom = -20.0
+grow_vertical = 0
+theme = ExtResource("2_theme")
+
+[node name="ControlsPanel" type="PanelContainer" parent="ControlsMargin"]
+layout_mode = 2
+
+[node name="ControlsLabel" type="Label" parent="ControlsMargin/ControlsPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.760784, 0.811765, 0.870588, 1)
+text = "ZQSD / Flèches : se déplacer  ·  Espace : siffler"
+horizontal_alignment = 1

@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://gameplay/referee/referee.gd" id="1_referee"]
+
+[sub_resource type="CircleShape2D" id="CircleShapeReferee"]
+radius = 15.0
+
+[node name="Referee" type="CharacterBody2D"]
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("1_referee")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShapeReferee")
+

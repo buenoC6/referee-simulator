@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="IncidentData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://gameplay/incidents/incident_data.gd" id="1_incident"]
+
+[resource]
+script = ExtResource("1_incident")
+incident_id = &"SIT-001"
+title = "Contact au milieu du terrain"
+description = "Le défenseur intervient en retard et heurte la jambe de l'attaquant avant de toucher le ballon."
+explanation = "Le contact irrégulier interrompt l'attaque : un coup franc direct est attendu. L'intervention est téméraire et doit être sanctionnée d'un avertissement."
+correct_technical_decision = 1
+correct_discipline_decision = 1
+incident_position = Vector2(760, 336)
+minimum_observation_distance = 90.0
+maximum_observation_distance = 230.0
+maximum_response_time = 4.0
