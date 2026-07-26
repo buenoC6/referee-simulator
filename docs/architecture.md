@@ -39,6 +39,30 @@ dans leur propre moitié, sauf le botteur autorisé au centre, et les adversaire
 sont repoussés hors du rayon de 9,15 m. Le ballon reste sur le point central
 jusqu'au sifflet, puis une passe visible le met réellement en jeu.
 
+## Intelligence collective et possession
+
+`FootballTeamAI` fournit les calculs tactiques sans déplacer directement les
+acteurs. Pour chaque passe possible, il mesure la longueur, la progression,
+l'espace du receveur et surtout la distance des adversaires au segment de passe.
+Le match choisit ensuite la meilleure solution avec une petite variation afin
+d'éviter des séquences parfaitement répétitives. Le receveur attaque le point de
+réception, prend un court temps de contrôle et peut être intercepté sur le
+trajet si un défenseur coupe réellement la ligne.
+
+`RefereePerspectiveMatch` joue le rôle de cerveau collectif. En possession,
+trois joueurs proches créent une sortie courte, un appui avancé et une solution
+de sécurité, tandis que les ailiers conservent la largeur et les attaquants
+respectent la ligne de hors-jeu. Sans ballon, le défenseur le plus proche presse,
+un second couvre et le reste de l'équipe resserre sa forme au lieu de courir
+vers le porteur. Les rôles `GK`, `FB`, `CB`, `DM`, `CM`, `AM`, `W` et `ST`
+modulent la profondeur, la largeur et la vitesse de replacement.
+
+La conduite utilise un couloir choisi selon l'espace disponible plutôt qu'une
+course rectiligne vers le but. Le ballon rejoint chaque touche par interpolation,
+les joueurs accélèrent et tournent progressivement, et une séparation locale
+évite qu'ils se superposent. Le HUD affiche la longueur de la séquence en cours,
+ce qui rend immédiatement perceptibles les phases de contrôle.
+
 À 45 minutes simulées, le match entre dans `HALF_TIME` : chronomètre et acteurs
 s'arrêtent, les positions de référence sont reflétées, les directions d'attaque,
 les surfaces défendues et les lignes de hors-jeu changent de côté. L'équipe qui

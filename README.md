@@ -25,7 +25,8 @@ Le but de ce dépôt est double :
   distance, afin de retrouver immédiatement le jeu sans caméra automatique ;
 - mini-carte 2D en direct avec les 22 joueurs, le ballon, la position de
   l'arbitre et un cône représentant sa direction de regard ;
-- passes, progression, récupérations, tirs, buts et duels sans arrêt automatique ;
+- séquences de possession, soutien en triangles, passes évaluées, pressing,
+  interceptions, tirs, buts et duels sans arrêt automatique ;
 - coup de sifflet libre avec `Espace`, à n'importe quel moment du jeu ;
 - coup d'envoi déclenché par le premier coup de sifflet du joueur, sans départ
   automatique, avec ballon au centre, chaque joueur dans son camp et adversaires

@@ -10,6 +10,9 @@ const PositioningModelClass = preload(
 const PerspectiveObservationModelClass = preload(
 	"res://gameplay/perspective/perspective_observation_model.gd"
 )
+const FootballTeamAIClass = preload(
+	"res://gameplay/perspective/football_team_ai.gd"
+)
 const AppScene: PackedScene = preload("res://core/app.tscn")
 
 var failures: int = 0
@@ -23,6 +26,7 @@ func _run() -> void:
 	print("Running Referee Simulator smoke tests...")
 	_test_app_navigates_between_menu_and_solo_match()
 	_test_detailed_foul_restart_flow()
+	_test_team_ai_builds_controlled_possession()
 	_test_visual_upgrade_and_ball_trajectory()
 	_test_lawful_kickoff_and_restarts()
 	_test_perfect_decision_scores_one_hundred()
@@ -257,6 +261,89 @@ func _test_app_navigates_between_menu_and_solo_match() -> void:
 	_expect_equal(app.current_screen is MainMenu, true, "match returns to menu")
 
 	app.free()
+
+
+func _test_team_ai_builds_controlled_possession() -> void:
+	var match_scene := preload(
+		"res://gameplay/perspective/referee_perspective_match.tscn"
+	).instantiate() as RefereePerspectiveMatch
+	root.add_child(match_scene)
+	match_scene._on_whistle_requested()
+
+	var passer := match_scene.blue_team[7]
+	var receiver := match_scene.blue_team[8]
+	var blocker := match_scene.red_team[6]
+	passer.global_position = Vector3(0.0, 0.0, 0.0)
+	receiver.global_position = Vector3(10.0, 0.0, 12.0)
+	receiver.target_position = receiver.global_position
+	receiver.moving = false
+	blocker.global_position = Vector3(5.0, 0.0, 6.0)
+	var blocked_option: Dictionary = FootballTeamAIClass.pass_option(
+		passer.global_position,
+		receiver,
+		1.0,
+		[blocker],
+		48.0
+	)
+	blocker.global_position = Vector3(-18.0, 0.0, 2.0)
+	var open_option: Dictionary = FootballTeamAIClass.pass_option(
+		passer.global_position,
+		receiver,
+		1.0,
+		[blocker],
+		48.0
+	)
+	_expect_equal(
+		float(open_option["score"]) > float(blocked_option["score"]),
+		true,
+		"team AI prefers an open passing lane"
+	)
+	_expect_equal(
+		float(open_option["lane_clearance"]) > 2.4,
+		true,
+		"team AI recognises a safely open passing lane"
+	)
+
+	match_scene._set_possession(0, passer)
+	match_scene.ball.global_position = (
+		passer.global_position + Vector3(0.0, 0.22, -0.6)
+	)
+	match_scene._update_team_shapes()
+	var nearest_defenders := match_scene._closest_outfield_players(
+		1,
+		passer.global_position,
+		3
+	)
+	_expect_equal(
+		nearest_defenders[0].target_position.distance_to(
+			passer.global_position
+		) < 2.0,
+		true,
+		"nearest defender presses the ball carrier"
+	)
+	_expect_equal(
+		nearest_defenders[2].target_position.distance_to(
+			passer.global_position
+		) > 4.0,
+		true,
+		"defensive block does not send every player toward the ball"
+	)
+
+	match_scene.pending_action = "pass"
+	match_scene.pending_receiver = receiver
+	match_scene.pending_offside = false
+	match_scene._resolve_ball_flight()
+	_expect_equal(
+		match_scene.possession_pass_count,
+		1,
+		"completed passes build a possession sequence"
+	)
+	_expect_equal(
+		match_scene.control_timer > 0.0,
+		true,
+		"receiver takes a controlled first touch before acting"
+	)
+	match_scene.free()
 
 
 func _test_detailed_foul_restart_flow() -> void:

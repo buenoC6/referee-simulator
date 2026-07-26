@@ -3,6 +3,7 @@ class_name PerspectivePlayer3D
 
 var target_position := Vector3.ZERO
 var movement_speed: float = 4.8
+var movement_acceleration: float = 12.5
 var moving: bool = false
 var visual_root: Node3D
 var shirt_material: StandardMaterial3D
@@ -86,8 +87,23 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var direction := offset.normalized()
-	velocity = direction * movement_speed
-	rotation.y = atan2(-direction.x, -direction.z)
+	var separation := _separation_direction()
+	var steering := (direction + separation * 0.58).normalized()
+	var desired_velocity := steering * movement_speed
+	velocity = velocity.move_toward(
+		desired_velocity,
+		movement_acceleration * delta
+	)
+	var facing_direction := (
+		velocity.normalized()
+		if velocity.length_squared() > 0.04
+		else direction
+	)
+	rotation.y = lerp_angle(
+		rotation.y,
+		atan2(-facing_direction.x, -facing_direction.z),
+		1.0 - exp(-10.5 * delta)
+	)
 	move_and_slide()
 	_animate_run(delta)
 
@@ -96,6 +112,33 @@ func move_to(next_target: Vector3, speed: float = 4.8) -> void:
 	target_position = next_target
 	movement_speed = speed
 	moving = true
+
+
+func _separation_direction() -> Vector3:
+	var separation := Vector3.ZERO
+	for other_candidate in get_tree().get_nodes_in_group(
+		"perspective_players"
+	):
+		var other := other_candidate as PerspectivePlayer3D
+		if other == null or other == self or not other.active:
+			continue
+		var offset := global_position - other.global_position
+		offset.y = 0.0
+		var distance := offset.length()
+		if distance >= 0.88:
+			continue
+		if distance <= 0.01:
+			offset = Vector3(
+				-1.0 if shirt_number % 2 == 0 else 1.0,
+				0.0,
+				-1.0 if team_id == 0 else 1.0
+			).normalized()
+			distance = 0.01
+		separation += (
+			offset.normalized()
+			* (1.0 - distance / 0.88)
+		)
+	return separation.limit_length(1.0)
 
 
 func freeze_actor() -> void:

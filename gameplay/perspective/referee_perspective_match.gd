@@ -23,6 +23,9 @@ const STADIUM_CATALOG := preload(
 const FOOTBALL_LAWS := preload(
 	"res://gameplay/perspective/football_laws_3d.gd"
 )
+const TEAM_AI := preload(
+	"res://gameplay/perspective/football_team_ai.gd"
+)
 const MATCH_REAL_DURATION := 180.0
 const HALF_REAL_DURATION := MATCH_REAL_DURATION * 0.5
 const EVENT_VALIDITY_SECONDS := 6.0
@@ -65,6 +68,9 @@ var ball_previous_position := Vector3.ZERO
 var ball_shadow: MeshInstance3D
 var action_timer: float = 1.6
 var shape_timer: float = 0.0
+var control_timer: float = 0.0
+var possession_pass_count: int = 0
+var possession_sequence_team_id: int = -1
 var foul_timer: float = 11.0
 var event_feedback_timer: float = 0.0
 var current_truth: Dictionary = {}
@@ -185,6 +191,9 @@ func _start_match() -> void:
 	var_referred_player = null
 	action_timer = 1.6
 	shape_timer = 0.0
+	control_timer = 0.0
+	possession_pass_count = 0
+	possession_sequence_team_id = -1
 	foul_timer = random.randf_range(9.0, 14.0)
 	event_feedback_timer = 0.0
 	ball_in_flight = false
@@ -323,6 +332,7 @@ func _process_simulation(delta: float) -> void:
 	)
 	shape_timer -= delta * tempo
 	action_timer -= delta * tempo
+	control_timer = maxf(0.0, control_timer - delta * tempo)
 	foul_timer -= delta * tempo
 	if protest_timer > 0.0:
 		protest_timer -= delta
@@ -343,83 +353,144 @@ func _process_simulation(delta: float) -> void:
 			return
 
 	var attack_direction := _attack_direction(possession_team_id)
+	var opponents: Array[PerspectivePlayer3D] = _active_team(
+		1 - possession_team_id
+	)
+	var carrier_pressure := TEAM_AI.nearest_opponent_distance(
+		possessor.global_position,
+		opponents
+	)
+	var dribble_direction: Vector3 = TEAM_AI.best_open_lane_direction(
+		possessor.global_position,
+		attack_direction,
+		opponents
+	)
 	var dribble_phase := match_elapsed * 11.0
 	var touch_offset := 0.58 + (sin(dribble_phase) * 0.5 + 0.5) * 0.14
-	var carrier_target := Vector3(
-		clampf(possessor.global_position.x * 0.78, -25.0, 25.0),
-		0.0,
-		clampf(
-			possessor.global_position.z + attack_direction * 6.0,
-			-47.0,
-			47.0
+	var carrier_target := FOOTBALL_LAWS.clamp_inside_pitch(
+		possessor.global_position + dribble_direction * (
+			3.2 if carrier_pressure < 3.0 else 2.1
 		)
 	)
-	possessor.move_to(carrier_target, 3.7 * tempo)
-	ball.global_position = possessor.global_position + Vector3(
-		0.0,
-		BALL_RADIUS + maxf(0.0, sin(dribble_phase)) * 0.055,
-		attack_direction * touch_offset
+	possessor.move_to(
+		carrier_target,
+		(3.55 if carrier_pressure >= 2.1 else 3.15) * tempo
 	)
-	_roll_ball(Vector3(0.0, 0.0, attack_direction * delta * 3.7 * tempo))
+	var touch_direction := dribble_direction
+	var touch_side := Vector3.UP.cross(touch_direction) * (
+		sin(dribble_phase * 0.5) * 0.08
+	)
+	var ball_target := possessor.global_position + (
+		touch_direction * touch_offset
+	) + touch_side
+	ball_target.y = (
+		BALL_RADIUS
+		+ maxf(0.0, sin(dribble_phase)) * 0.055
+	)
+	var previous_ball_position := ball.global_position
+	ball.global_position = ball.global_position.lerp(
+		ball_target,
+		1.0 - exp(-15.0 * delta)
+	)
+	_roll_ball(ball.global_position - previous_ball_position)
 	_update_ball_shadow()
 
 	if foul_timer <= 0.0 and current_truth.is_empty():
 		_generate_foul_event()
 		return
-	if action_timer <= 0.0:
+	if action_timer <= 0.0 and control_timer <= 0.0:
 		_choose_action()
 
 
 func _choose_action() -> void:
 	if possessor == null:
 		return
-	var progress := absf(possessor.global_position.z) / 52.5
-	if progress >= 0.72 and random.randf() < 0.43:
+	var attack_direction := _attack_direction(possession_team_id)
+	var progress := clampf(
+		(possessor.global_position.z * attack_direction + 52.5) / 105.0,
+		0.0,
+		1.0
+	)
+	var nearest_opponent := _nearest_active_opponent(
+		possession_team_id,
+		possessor.global_position
+	)
+	var pressure_distance := (
+		possessor.global_position.distance_to(
+			nearest_opponent.global_position
+		)
+		if nearest_opponent != null
+		else 20.0
+	)
+	var match_tension_ratio := (
+		maxf(blue_tension, red_tension) / 100.0
+	)
+	if progress >= 0.76 and random.randf() < 0.38:
 		_start_shot()
 		return
-	var turnover_chance := 0.16 + maxf(
-		blue_tension,
-		red_tension
-	) * 0.0012
-	if random.randf() < turnover_chance:
-		var opponent := _nearest_active_opponent(
-			possession_team_id,
-			possessor.global_position
-		)
-		if opponent != null and opponent.global_position.distance_to(
-			possessor.global_position
-		) <= 4.8:
-			_set_possession(1 - possession_team_id, opponent)
-			hud.set_phase("Ballon récupéré par %s" % opponent.name)
-			action_timer = random.randf_range(1.1, 1.8)
-			return
+	if (
+		nearest_opponent != null
+		and pressure_distance < 1.35
+		and random.randf() < 0.07 + match_tension_ratio * 0.1
+	):
+		_set_possession(1 - possession_team_id, nearest_opponent)
+		hud.set_phase("Ballon récupéré par %s" % nearest_opponent.name)
+		action_timer = random.randf_range(0.65, 1.0)
+		return
+	if pressure_distance > 4.8 and random.randf() < 0.28:
+		action_timer = random.randf_range(0.55, 0.9)
+		return
 	_start_pass()
 
 
 func _start_pass() -> void:
 	var candidates: Array[PerspectivePlayer3D] = []
 	for player in _active_team(possession_team_id):
-		if player != possessor and not bool(player.get_meta("goalkeeper", false)):
+		if player != possessor:
 			candidates.append(player)
 	if candidates.is_empty():
 		action_timer = 1.0
 		return
 
 	var attack_direction := _attack_direction(possession_team_id)
-	candidates.sort_custom(
-		func(a: PerspectivePlayer3D, b: PerspectivePlayer3D) -> bool:
-			return a.global_position.z * attack_direction > b.global_position.z * attack_direction
-	)
-	pending_receiver = candidates[
-		random.randi_range(0, mini(candidates.size() - 1, 4))
-	]
 	var offside_line := _offside_line_for(possession_team_id)
+	var opponents: Array[PerspectivePlayer3D] = _active_team(
+		1 - possession_team_id
+	)
+	var best_option: Dictionary = {}
+	var best_score := -INF
+	for candidate in candidates:
+		var option: Dictionary = TEAM_AI.pass_option(
+			possessor.global_position,
+			candidate,
+			attack_direction,
+			opponents,
+			offside_line
+		)
+		var score: float = float(option["score"]) + random.randf_range(
+			-0.045,
+			0.045
+		)
+		if score > best_score:
+			best_score = score
+			best_option = option
+	if best_option.is_empty():
+		action_timer = 0.7
+		return
+	pending_receiver = best_option["receiver"]
 	if (
 		current_truth.is_empty()
-		and random.randf() < 0.24
+		and random.randf() < 0.12
 		and absf(offside_line) > 8.0
 	):
 		pending_receiver.global_position.z = offside_line + attack_direction * 2.4
+		best_option = TEAM_AI.pass_option(
+			possessor.global_position,
+			pending_receiver,
+			attack_direction,
+			opponents,
+			offside_line + attack_direction * 3.2
+		)
 
 	pending_offside = _is_offside(
 		pending_receiver,
@@ -427,10 +498,12 @@ func _start_pass() -> void:
 		offside_line
 	)
 	var passer_name := possessor.name
-	var destination := pending_receiver.global_position + Vector3(
-		0.0,
-		BALL_RADIUS,
-		attack_direction * 1.8
+	var destination: Vector3 = best_option["destination"]
+	destination.y = BALL_RADIUS
+	var pass_distance: float = float(best_option["distance"])
+	pending_receiver.move_to(
+		Vector3(destination.x, 0.0, destination.z),
+		4.15
 	)
 	possessor.freeze_actor()
 	possessor = null
@@ -438,10 +511,16 @@ func _start_pass() -> void:
 	pending_action = "pass"
 	_start_ball_flight(
 		destination,
-		random.randf_range(0.72, 1.2),
-		random.randf_range(0.24, 0.58)
+		clampf(pass_distance / 17.0, 0.46, 1.28),
+		clampf((pass_distance - 13.0) / 36.0, 0.06, 0.42),
+		random.randf_range(-0.12, 0.12)
 	)
-	hud.set_phase("Passe de %s" % passer_name)
+	hud.set_phase(
+		"Passe de %s · %d passes" % [
+			passer_name,
+			possession_pass_count + 1,
+		]
+	)
 
 
 func _start_shot() -> void:
@@ -509,8 +588,44 @@ func _update_ball_flight(delta: float) -> void:
 	_roll_ball(ball.global_position - ball_previous_position)
 	ball_previous_position = ball.global_position
 	_update_ball_shadow()
+	if (
+		pending_action == "pass"
+		and progress > 0.12
+		and progress < 0.94
+		and ball.global_position.y <= 0.72
+		and _try_intercept_pass()
+	):
+		return
 	if progress >= 1.0:
 		_resolve_ball_flight()
+
+
+func _try_intercept_pass() -> bool:
+	var interceptor := _nearest_active_opponent(
+		possession_team_id,
+		ball.global_position
+	)
+	if interceptor == null:
+		return false
+	var flat_distance := Vector2(
+		interceptor.global_position.x - ball.global_position.x,
+		interceptor.global_position.z - ball.global_position.z
+	).length()
+	if flat_distance > 0.92:
+		return false
+	var intercepting_team := 1 - possession_team_id
+	interceptor.global_position = Vector3(
+		ball.global_position.x,
+		0.0,
+		ball.global_position.z
+	)
+	pending_receiver = null
+	pending_offside = false
+	ball.global_position.y = BALL_RADIUS
+	_set_possession(intercepting_team, interceptor)
+	action_timer = random.randf_range(0.55, 0.85)
+	hud.set_phase("Interception de %s" % interceptor.name)
+	return true
 
 
 func _resolve_ball_flight() -> void:
@@ -525,7 +640,8 @@ func _resolve_ball_flight() -> void:
 			_set_possession(possession_team_id, pending_receiver)
 		pending_receiver = null
 		pending_offside = false
-		action_timer = random.randf_range(1.0, 1.9)
+		possession_pass_count += 1
+		action_timer = random.randf_range(0.72, 1.28)
 		return
 
 	if pending_action == "shot":
@@ -1450,10 +1566,23 @@ func _enforce_opponents_outside_penalty_area(
 func _set_possession(team_id: int, player: PerspectivePlayer3D) -> void:
 	if player == null:
 		return
+	if possession_sequence_team_id != team_id:
+		possession_sequence_team_id = team_id
+		possession_pass_count = 0
 	possession_team_id = team_id
 	possessor = player
 	ball_in_flight = false
 	pending_action = ""
+	var opponents: Array[PerspectivePlayer3D] = _active_team(1 - team_id)
+	var pressure := TEAM_AI.nearest_opponent_distance(
+		player.global_position,
+		opponents
+	)
+	control_timer = 0.18 if pressure > 3.2 else 0.34
+	action_timer = maxf(
+		action_timer,
+		0.52 if pressure < 2.4 else 0.82
+	)
 
 
 func _update_team_shapes() -> void:
@@ -1462,6 +1591,20 @@ func _update_team_shapes() -> void:
 		if ball_in_flight or possessor == null
 		else possessor.global_position
 	)
+	var attacking_support: Array[PerspectivePlayer3D] = []
+	var defending_pressers: Array[PerspectivePlayer3D] = []
+	if possessor != null:
+		attacking_support = _closest_outfield_players(
+			possession_team_id,
+			ball_reference,
+			3,
+			[possessor, pending_receiver]
+		)
+		defending_pressers = _closest_outfield_players(
+			1 - possession_team_id,
+			ball_reference,
+			2
+		)
 	for player in perspective_players:
 		if (
 			not player.active
@@ -1472,14 +1615,133 @@ func _update_team_shapes() -> void:
 			continue
 		var home: Vector3 = player.get_meta("home_position")
 		var team_has_ball: bool = player.team_id == possession_team_id
-		var z_influence: float = ball_reference.z * (0.23 if team_has_ball else 0.17)
-		var x_influence: float = ball_reference.x * 0.12
-		var target: Vector3 = Vector3(
-			clampf(home.x + x_influence, -29.0, 29.0),
-			0.0,
-			clampf(home.z + z_influence, -48.0, 48.0)
+		var attack_direction := _attack_direction(player.team_id)
+		var role: String = str(player.get_meta("role", "CM"))
+		var target: Vector3
+		var speed := 2.65
+
+		if not team_has_ball and player in defending_pressers:
+			var pressure_rank := defending_pressers.find(player)
+			var own_goal := Vector3(
+				0.0,
+				0.0,
+				FOOTBALL_LAWS.own_half_sign(
+					player.team_id,
+					second_half
+				) * 52.5
+			)
+			var goal_side := (own_goal - ball_reference).normalized()
+			if pressure_rank == 0:
+				target = ball_reference + goal_side * 1.05
+				speed = 4.05
+			else:
+				var cover_side := (
+					-1.0 if player.shirt_number % 2 == 0 else 1.0
+				)
+				target = ball_reference + (
+					goal_side * 4.4
+					+ Vector3(cover_side * 3.2, 0.0, 0.0)
+				)
+				speed = 3.45
+			target = FOOTBALL_LAWS.clamp_inside_pitch(target)
+			player.move_to(target, speed)
+			continue
+
+		if team_has_ball and player in attacking_support:
+			var support_rank := attacking_support.find(player)
+			var side := (
+				-1.0
+				if home.x < ball_reference.x
+				else 1.0
+			)
+			if support_rank == 0:
+				target = ball_reference + Vector3(
+					side * 6.2,
+					0.0,
+					-attack_direction * 4.8
+				)
+			elif support_rank == 1:
+				target = ball_reference + Vector3(
+					-side * 7.8,
+					0.0,
+					attack_direction * 2.6
+				)
+			else:
+				target = ball_reference + Vector3(
+					side * 11.0,
+					0.0,
+					-attack_direction * 8.5
+				)
+			var support_line := _offside_line_for(player.team_id)
+			if attack_direction > 0.0:
+				target.z = minf(target.z, support_line - 0.9)
+			else:
+				target.z = maxf(target.z, support_line + 0.9)
+			target = FOOTBALL_LAWS.clamp_inside_pitch(target)
+			player.move_to(target, 3.25)
+			continue
+
+		var z_factor := 0.34 if team_has_ball else 0.23
+		if role in ["CB", "FB"]:
+			z_factor *= 0.72
+		elif role == "GK":
+			z_factor *= 0.28
+		var z_influence: float = (
+			(ball_reference.z - home.z) * z_factor
 		)
-		player.move_to(target, 2.25 if team_has_ball else 2.65)
+		var x_compactness := 0.78 if not team_has_ball else 1.0
+		var x_influence: float = (
+			(ball_reference.x - home.x) * (
+				0.2 if team_has_ball else 0.28
+			)
+		)
+		var role_width := home.x * x_compactness
+		if team_has_ball and role == "W":
+			role_width = clampf(home.x * 1.18, -28.5, 28.5)
+		if role == "GK":
+			role_width = ball_reference.x * 0.13
+		target = Vector3(
+			clampf(role_width + x_influence, -30.5, 30.5),
+			0.0,
+			clampf(home.z + z_influence, -49.2, 49.2)
+		)
+		if team_has_ball and role in ["ST", "W", "AM"]:
+			var offside_line := _offside_line_for(player.team_id)
+			if attack_direction > 0.0:
+				target.z = minf(target.z, offside_line - 1.1)
+			else:
+				target.z = maxf(target.z, offside_line + 1.1)
+		speed = 2.85 if team_has_ball else 2.72
+		if role == "GK":
+			speed = 2.15
+		player.move_to(target, speed)
+
+
+func _closest_outfield_players(
+	team_id: int,
+	position: Vector3,
+	limit: int,
+	excluded: Array = []
+) -> Array[PerspectivePlayer3D]:
+	var candidates: Array[PerspectivePlayer3D] = []
+	for player in _active_team(team_id):
+		if (
+			player in excluded
+			or bool(player.get_meta("goalkeeper", false))
+		):
+			continue
+		candidates.append(player)
+	candidates.sort_custom(
+		func(a: PerspectivePlayer3D, b: PerspectivePlayer3D) -> bool:
+			return (
+				a.global_position.distance_squared_to(position)
+				< b.global_position.distance_squared_to(position)
+			)
+	)
+	var result: Array[PerspectivePlayer3D] = []
+	for index in range(mini(limit, candidates.size())):
+		result.append(candidates[index])
+	return result
 
 
 func _update_assistants() -> void:
@@ -2437,8 +2699,30 @@ func _spawn_player(
 		stadium_profile["short_name"] if team_id == 0 else "VISITEURS"
 	)
 	player.set_meta("goalkeeper", is_goalkeeper)
+	player.set_meta("role", _role_for_number(number))
 	perspective_players.append(player)
 	return player
+
+
+func _role_for_number(number: int) -> String:
+	match number:
+		1:
+			return "GK"
+		2, 5:
+			return "FB"
+		3, 4:
+			return "CB"
+		6:
+			return "DM"
+		8:
+			return "CM"
+		10:
+			return "AM"
+		7, 11:
+			return "W"
+		9:
+			return "ST"
+	return "CM"
 
 
 func _build_assistants() -> void:
