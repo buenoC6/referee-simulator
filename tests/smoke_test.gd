@@ -34,6 +34,17 @@ func _test_app_navigates_between_menu_and_solo_match() -> void:
 	_expect_equal(app.current_screen is MainMenu, true, "app starts on main menu")
 	app.current_screen.solo_requested.emit()
 	_expect_equal(app.current_screen is RefereeMatch, true, "solo opens a match")
+	var match_scene := app.current_screen as RefereeMatch
+	_expect_equal(
+		(match_scene.get_node("BlueTeam") as FootballTeam).players.size(),
+		11,
+		"blue team fields eleven players"
+	)
+	_expect_equal(
+		(match_scene.get_node("RedTeam") as FootballTeam).players.size(),
+		11,
+		"red team fields eleven players"
+	)
 	app.current_screen.main_menu_requested.emit()
 	_expect_equal(app.current_screen is MainMenu, true, "match returns to menu")
 

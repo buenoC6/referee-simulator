@@ -78,3 +78,21 @@ Exercice :
 ## Étape 7 — Première extension
 
 Duplique la ressource SIT-001 pour préparer SIT-002. Ne l'intègre pas immédiatement au match : commence par écrire la vérité de la situation, les choix corrects et le feedback.
+
+## Étape 8 — Comprendre les équipes et l’IA
+
+Ouvre `football_team.gd`, puis `match_simulation.gd`.
+
+Observe la séparation :
+
+- l’équipe sait quels joueurs elle possède et où son bloc doit se placer ;
+- la simulation sait qui possède le ballon et choisit la prochaine action ;
+- le joueur sait uniquement comment atteindre une position cible ;
+- le match orchestre l’arbitrage, sans décider des passes.
+
+Exercice :
+
+- modifie une position du tableau 4-3-3 ;
+- change l’intervalle des incidents ;
+- augmente légèrement la probabilité de but ;
+- vérifie chaque changement séparément.

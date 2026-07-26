@@ -11,8 +11,9 @@ Le but de ce dépôt est double :
 
 - déplacement de l'arbitre avec `ZQSD` ;
 - menu principal présentant le contexte et lançant une partie solo ;
-- courte action de match scénarisée ;
-- fenêtre de décision limitée dans le temps ;
+- match accéléré de trois minutes avec deux équipes de 11 joueurs ;
+- IA simplifiée : formations, possession, passes, pressing, interceptions, tirs et buts ;
+- plusieurs fenêtres de décision arbitrale limitées dans le temps ;
 - coup de sifflet avec `Espace` ;
 - choix de la décision technique et disciplinaire ;
 - note détaillée sur la décision, la discipline, le positionnement et le délai ;
@@ -55,7 +56,9 @@ gameplay/
 ├── incidents/     # Données des situations + orchestration
 ├── match/         # Scène principale et boucle de partie
 ├── players/       # Joueurs de démonstration
-└── referee/       # Contrôle du personnage arbitre
+├── referee/       # Contrôle du personnage arbitre
+├── simulation/    # Décisions autonomes du match
+└── teams/         # Effectifs, rôles et formations
 ui/                # HUD, décision et écran de résultats
 tests/             # Tests headless très légers
 docs/              # Architecture, apprentissage et décisions
@@ -76,7 +79,9 @@ Les dossiers suivent les recommandations Godot : fichiers et dossiers en `snake_
 
 ## Philosophie du prototype
 
-Ce socle ne cherche pas encore à simuler un match complet. Une action scénarisée permet de tester le cœur du jeu beaucoup plus tôt :
+Ce socle propose un match complet accéléré, mais son IA reste volontairement
+lisible et simplifiée. Elle permet de tester le cœur du jeu sans prétendre
+reproduire toutes les tactiques du football professionnel :
 
 ```text
 suivre l'action

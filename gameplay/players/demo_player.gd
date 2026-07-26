@@ -5,6 +5,11 @@ class_name DemoPlayer
 @export_range(1, 99, 1) var shirt_number: int = 1
 @export_range(40.0, 400.0, 10.0) var move_speed: float = 150.0
 
+var team_id: int = 0
+var role: StringName = &""
+var home_position := Vector2.ZERO
+var is_goalkeeper: bool = false
+var has_ball: bool = false
 var target_position := Vector2.ZERO
 var movement_enabled: bool = false
 
@@ -42,6 +47,26 @@ func stop() -> void:
 	velocity = Vector2.ZERO
 
 
+func configure(
+	new_team_id: int,
+	new_role: StringName,
+	new_home_position: Vector2,
+	goalkeeper: bool = false
+) -> void:
+	team_id = new_team_id
+	role = new_role
+	home_position = new_home_position
+	is_goalkeeper = goalkeeper
+	global_position = home_position
+	target_position = home_position
+	queue_redraw()
+
+
+func set_has_ball(value: bool) -> void:
+	has_ball = value
+	queue_redraw()
+
+
 func reset_to(start_position: Vector2) -> void:
 	global_position = start_position
 	target_position = start_position
@@ -49,6 +74,16 @@ func reset_to(start_position: Vector2) -> void:
 
 
 func _draw() -> void:
+	if has_ball:
+		draw_arc(
+			Vector2.ZERO,
+			23.0,
+			0.0,
+			TAU,
+			32,
+			Color("#facc15"),
+			3.0
+		)
 	draw_circle(Vector2(2.0, 5.0), 18.0, Color(0.0, 0.0, 0.0, 0.25))
 	draw_circle(Vector2.ZERO, 17.0, team_color)
 	draw_arc(Vector2.ZERO, 17.0, 0.0, TAU, 32, Color.WHITE, 2.0)
@@ -64,4 +99,3 @@ func _draw() -> void:
 		15,
 		Color.WHITE
 	)
-

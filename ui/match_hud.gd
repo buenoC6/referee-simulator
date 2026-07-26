@@ -2,6 +2,7 @@ extends CanvasLayer
 class_name MatchHud
 
 @onready var clock_label: Label = %ClockLabel
+@onready var score_label: Label = %ScoreLabel
 @onready var phase_label: Label = %PhaseLabel
 @onready var banner_panel: PanelContainer = %BannerPanel
 @onready var banner_title: Label = %BannerTitle
@@ -13,11 +14,12 @@ func _ready() -> void:
 	hide_incident()
 
 
-func set_match_time(elapsed_seconds: float) -> void:
-	var total_seconds := floori(elapsed_seconds)
-	var minutes := total_seconds / 60
-	var seconds := total_seconds % 60
-	clock_label.text = "%02d:%02d" % [minutes, seconds]
+func set_match_minute(match_minutes: float) -> void:
+	clock_label.text = "%02d′" % clampi(floori(match_minutes), 0, 90)
+
+
+func set_score(blue_score: int, red_score: int) -> void:
+	score_label.text = "BLEUS  %d  –  %d  ROUGES" % [blue_score, red_score]
 
 
 func set_phase(text: String) -> void:
@@ -40,4 +42,3 @@ func update_incident_countdown(seconds_remaining: float) -> void:
 
 func hide_incident() -> void:
 	banner_panel.visible = false
-

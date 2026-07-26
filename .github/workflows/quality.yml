@@ -41,3 +41,6 @@ jobs:
 
       - name: Run the main scene
         run: godot --headless --path . --quit-after 600
+
+      - name: Exercise the 11v11 simulation
+        run: godot --headless --path . res://gameplay/match/match.tscn --quit-after 1800

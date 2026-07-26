@@ -56,7 +56,7 @@ size_flags_horizontal = 3
 layout_mode = 2
 theme_override_colors/font_color = Color(0.482353, 0.552941, 0.635294, 1)
 theme_override_font_sizes/font_size = 15
-text = "PROTOTYPE 0.1 · GODOT 4.7.1"
+text = "PROTOTYPE 0.2 · GODOT 4.7.1"
 
 [node name="MainSpacerTop" type="Control" parent="PageMargin/PageColumn"]
 layout_mode = 2
@@ -95,7 +95,7 @@ theme_override_constants/separation = 12
 [node name="DurationPill" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn/PillRow"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
-text = "●  3–5 MINUTES"
+text = "●  MATCH DE 3 MINUTES"
 
 [node name="Separator1" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn/PillRow"]
 layout_mode = 2
@@ -105,7 +105,7 @@ text = "│"
 [node name="ScenarioPill" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn/PillRow"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
-text = "1 SITUATION"
+text = "1 TYPE D’INCIDENT"
 
 [node name="Separator2" type="Label" parent="PageMargin/PageColumn/ContentRow/ContextColumn/PillRow"]
 layout_mode = 2
@@ -133,7 +133,7 @@ text = "Choisir un mode"
 [node name="ModeDescription" type="Label" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.686275, 0.760784, 0.843137, 1)
-text = "Le prototype propose une première\nsituation d’entraînement."
+text = "Deux équipes de 11 joueurs s’affrontent.\nTu es l’arbitre de la rencontre."
 
 [node name="SoloButton" type="Button" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
 unique_name_in_owner = true
@@ -146,7 +146,7 @@ alignment = 0
 layout_mode = 2
 theme_override_colors/font_color = Color(0.482353, 0.552941, 0.635294, 1)
 theme_override_font_sizes/font_size = 14
-text = "SIT-001 · Contact au milieu du terrain"
+text = "11 CONTRE 11 · IA · RAPPORT D’ARBITRAGE"
 
 [node name="Separator" type="HSeparator" parent="PageMargin/PageColumn/ContentRow/MenuCard/MenuColumn"]
 layout_mode = 2
@@ -177,4 +177,3 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.482353, 0.552941, 0.635294, 1)
 theme_override_font_sizes/font_size = 14
 text = "Prototype d’apprentissage · Les règles et le contenu évolueront avec les prochains playtests."
-
