@@ -3,18 +3,25 @@ class_name MatchSimulation
 
 signal score_changed(blue_score: int, red_score: int)
 signal event_announced(text: String)
-signal foul_committed(position: Vector2, fouled_team_id: int)
+signal foul_committed(
+	position: Vector2,
+	fouled_team_id: int,
+	offender: DemoPlayer
+)
 
 @onready var blue_team: FootballTeam = $"../BlueTeam"
 @onready var red_team: FootballTeam = $"../RedTeam"
 @onready var ball: MatchBall = $"../MatchBall"
+@onready var rules: FootballRulesEngine = $"../FootballRulesEngine"
 
 var blue_score: int = 0
 var red_score: int = 0
 var is_running: bool = false
 var possession_team: FootballTeam
 var possessor: DemoPlayer
+var last_touch_team: FootballTeam
 var last_fouled_team: FootballTeam
+var last_offender: DemoPlayer
 
 var action_timer: float = 0.0
 var shape_timer: float = 0.0
@@ -22,6 +29,8 @@ var tackle_cooldown: float = 0.0
 var incident_timer: float = 0.0
 var pending_shot: bool = false
 var shot_will_score: bool = false
+var pending_offside: bool = false
+var pending_receiver: DemoPlayer
 
 var random := RandomNumberGenerator.new()
 
@@ -35,8 +44,8 @@ func reset_match() -> void:
 	is_running = false
 	blue_score = 0
 	red_score = 0
-	blue_team.reset_formation()
-	red_team.reset_formation()
+	blue_team.prepare_new_match()
+	red_team.prepare_new_match()
 	ball.reset_to(Vector2(640.0, 360.0))
 	_set_possession(blue_team, blue_team.get_player_by_number(9))
 	action_timer = 1.5
@@ -44,6 +53,8 @@ func reset_match() -> void:
 	tackle_cooldown = 1.5
 	incident_timer = random.randf_range(18.0, 25.0)
 	pending_shot = false
+	pending_offside = false
+	last_offender = null
 	score_changed.emit(blue_score, red_score)
 
 
@@ -60,19 +71,60 @@ func pause_for_incident() -> void:
 
 func resume_after_incident(foul_awarded: bool) -> void:
 	if foul_awarded and last_fouled_team != null:
-		var restart_player := last_fouled_team.get_nearest_player(
-			ball.global_position,
-			false
+		_award_restart(
+			FootballRulesEngine.RestartType.DIRECT_FREE_KICK,
+			last_fouled_team,
+			ball.global_position
 		)
-		_set_possession(last_fouled_team, restart_player)
-		event_announced.emit("Reprise sur coup franc")
 	else:
+		if is_instance_valid(possessor):
+			_set_possession(possession_team, possessor)
 		event_announced.emit("Le jeu se poursuit")
 
 	incident_timer = random.randf_range(24.0, 36.0)
 	action_timer = 1.2
 	tackle_cooldown = 2.0
 	is_running = true
+
+
+func apply_referee_discipline(
+	discipline_choice: IncidentData.DisciplineDecision
+) -> void:
+	if not is_instance_valid(last_offender):
+		return
+	var offender_team := blue_team if last_offender.team_id == blue_team.team_id else red_team
+	match discipline_choice:
+		IncidentData.DisciplineDecision.YELLOW_CARD:
+			var sent_off := offender_team.apply_yellow_card(last_offender)
+			event_announced.emit(
+				"Second avertissement : exclusion"
+				if sent_off
+				else "Carton jaune pour %s" % last_offender.display_name()
+			)
+		IncidentData.DisciplineDecision.RED_CARD:
+			var offender_name := last_offender.display_name()
+			offender_team.apply_red_card(last_offender)
+			event_announced.emit("Carton rouge pour %s" % offender_name)
+
+
+func make_automatic_substitutions() -> void:
+	for team in [blue_team, red_team]:
+		var excluded := possessor if possession_team == team else null
+		if (
+			excluded == null
+			and is_instance_valid(pending_receiver)
+			and pending_receiver.team_id == team.team_id
+		):
+			excluded = pending_receiver
+		var change: Dictionary = team.make_automatic_substitution(excluded)
+		if not change.is_empty():
+			event_announced.emit(
+				"%s : %s remplace %s" % [
+					team.display_name,
+					change["in"],
+					change["out"],
+				]
+			)
 
 
 func stop_match() -> void:
@@ -102,31 +154,42 @@ func _process(delta: float) -> void:
 		_update_team_shapes()
 		shape_timer = 0.24
 
-	if possessor == null or ball.is_in_flight:
+	if possessor == null or not is_instance_valid(possessor) or ball.is_in_flight:
 		return
 
 	_move_ball_carrier()
-	_apply_defensive_pressure()
 
 	if _try_trigger_incident():
 		return
-
 	if _try_turnover():
 		return
-
 	if action_timer <= 0.0:
 		_choose_next_action()
 
 
 func _update_team_shapes() -> void:
-	var carrier := possessor
-	blue_team.update_shape(ball.global_position, possession_team == blue_team, carrier)
-	red_team.update_shape(ball.global_position, possession_team == red_team, carrier)
+	var defending_team := _opponent_of(possession_team)
+	var pressing_player: DemoPlayer
+	if is_instance_valid(possessor):
+		pressing_player = defending_team.get_nearest_player(
+			possessor.global_position,
+			false
+		)
+	blue_team.publish_tactical_context(
+		ball.global_position,
+		possession_team == blue_team,
+		possessor,
+		pressing_player if defending_team == blue_team else null
+	)
+	red_team.publish_tactical_context(
+		ball.global_position,
+		possession_team == red_team,
+		possessor,
+		pressing_player if defending_team == red_team else null
+	)
 
 
 func _move_ball_carrier() -> void:
-	if possessor == null:
-		return
 	var attack_direction := 1.0 if possession_team.attacks_right else -1.0
 	var lane_y := lerpf(possessor.home_position.y, 360.0, 0.28)
 	var destination := Vector2(
@@ -134,15 +197,6 @@ func _move_ball_carrier() -> void:
 		clampf(lane_y, 105.0, 615.0)
 	)
 	possessor.move_to(destination, 108.0)
-
-
-func _apply_defensive_pressure() -> void:
-	var defending_team := _opponent_of(possession_team)
-	var pressing_player := defending_team.get_nearest_player(
-		possessor.global_position,
-		false
-	)
-	pressing_player.move_to(possessor.global_position, 137.0)
 
 
 func _try_trigger_incident() -> bool:
@@ -154,18 +208,26 @@ func _try_trigger_incident() -> bool:
 		possessor.global_position,
 		false
 	)
-	if pressing_player.global_position.distance_to(possessor.global_position) > 72.0:
+	if (
+		pressing_player == null
+		or pressing_player.global_position.distance_to(possessor.global_position) > 72.0
+	):
 		return false
 
 	last_fouled_team = possession_team
+	last_offender = pressing_player
 	pressing_player.global_position = possessor.global_position + Vector2(
 		-18.0 if possession_team.attacks_right else 18.0,
 		8.0
 	)
 	ball.freeze_at(possessor.global_position + Vector2(10.0, 7.0))
 	pause_for_incident()
-	event_announced.emit("Contact entre deux joueurs")
-	foul_committed.emit(possessor.global_position, possession_team.team_id)
+	event_announced.emit("Contact : %s intervient en retard" % pressing_player.display_name())
+	foul_committed.emit(
+		possessor.global_position,
+		possession_team.team_id,
+		pressing_player
+	)
 	return true
 
 
@@ -178,7 +240,10 @@ func _try_turnover() -> bool:
 		possessor.global_position,
 		false
 	)
-	if pressing_player.global_position.distance_to(possessor.global_position) > 29.0:
+	if (
+		pressing_player == null
+		or pressing_player.global_position.distance_to(possessor.global_position) > 29.0
+	):
 		return false
 
 	tackle_cooldown = random.randf_range(2.5, 4.0)
@@ -187,7 +252,12 @@ func _try_turnover() -> bool:
 
 	_set_possession(defending_team, pressing_player)
 	action_timer = random.randf_range(0.9, 1.5)
-	event_announced.emit("Ballon récupéré par %s" % defending_team.display_name)
+	event_announced.emit(
+		"Ballon récupéré par %s (%s)" % [
+			defending_team.display_name,
+			pressing_player.display_name(),
+		]
+	)
 	return true
 
 
@@ -217,27 +287,41 @@ func _pass_ball() -> void:
 		for teammate in possession_team.players:
 			if teammate != possessor:
 				candidates.append(teammate)
+	if candidates.is_empty():
+		return
 
 	candidates.sort_custom(
 		func(a: DemoPlayer, b: DemoPlayer) -> bool:
-			var a_progress := a.global_position.x * attack_direction
-			var b_progress := b.global_position.x * attack_direction
-			return a_progress > b_progress
+			return (
+				a.global_position.x * attack_direction
+				> b.global_position.x * attack_direction
+			)
 	)
 	var selection_limit := mini(candidates.size(), 4)
 	var receiver := candidates[random.randi_range(0, selection_limit - 1)]
-	var passer_number := possessor.shirt_number
+	var passer_name := possessor.display_name()
 
+	pending_offside = rules.is_offside_position(
+		receiver,
+		possession_team,
+		_opponent_of(possession_team),
+		ball.global_position
+	)
+	pending_receiver = receiver
+	last_touch_team = possession_team
 	possessor.set_has_ball(false)
 	possessor = null
+
 	var destination := receiver.global_position + receiver.velocity * 0.28
+	if random.randf() < 0.08:
+		destination.y = 46.0 if random.randi_range(0, 1) == 0 else 674.0
 	var duration := clampf(
 		ball.global_position.distance_to(destination) / 430.0,
 		0.45,
 		1.15
 	)
 	ball.kick_to(destination, duration, receiver)
-	event_announced.emit("Passe du n°%d" % passer_number)
+	event_announced.emit("Passe de %s" % passer_name)
 
 
 func _shoot() -> void:
@@ -248,36 +332,65 @@ func _shoot() -> void:
 	var scoring_probability := clampf(0.58 - distance_to_goal / 720.0, 0.14, 0.52)
 	shot_will_score = random.randf() < scoring_probability
 	pending_shot = true
+	last_touch_team = shooting_team
 
 	var target_y := random.randf_range(320.0, 400.0)
 	if not shot_will_score:
 		target_y = 270.0 if random.randi_range(0, 1) == 0 else 450.0
 
-	var shooter_number := possessor.shirt_number
+	var shooter_name := possessor.display_name()
 	possessor.set_has_ball(false)
 	possessor = null
 	ball.kick_to(Vector2(goal_x + attack_direction * 8.0, target_y), 0.62)
-	event_announced.emit("Frappe du n°%d !" % shooter_number)
+	event_announced.emit("Frappe de %s !" % shooter_name)
 
 
 func _on_ball_travel_finished(intended_receiver: DemoPlayer) -> void:
 	if pending_shot:
+		pending_receiver = null
 		_resolve_shot()
 		return
 
-	if intended_receiver == null:
+	if rules.is_ball_out(ball.global_position):
+		pending_offside = false
+		pending_receiver = null
+		var restart := rules.classify_ball_out(ball.global_position, last_touch_team)
+		_award_restart(restart["type"], restart["team"], restart["position"])
+		return
+
+	if pending_offside:
+		pending_offside = false
+		var defending_team := _opponent_of(possession_team)
+		var offence_position := (
+			pending_receiver.global_position
+			if is_instance_valid(pending_receiver)
+			else ball.global_position
+		)
+		_award_restart(
+			FootballRulesEngine.RestartType.INDIRECT_FREE_KICK,
+			defending_team,
+			offence_position
+		)
+		pending_receiver = null
+		event_announced.emit("Hors-jeu : coup franc indirect")
+		return
+
+	if intended_receiver == null or not is_instance_valid(intended_receiver):
+		pending_receiver = null
 		return
 
 	var opponent_team := _opponent_of(possession_team)
 	var interceptor := opponent_team.get_nearest_player(ball.global_position, false)
 	if (
-		interceptor.global_position.distance_to(ball.global_position) < 34.0
+		interceptor != null
+		and interceptor.global_position.distance_to(ball.global_position) < 34.0
 		and random.randf() < 0.46
 	):
 		_set_possession(opponent_team, interceptor)
-		event_announced.emit("Passe interceptée")
+		event_announced.emit("Passe interceptée par %s" % interceptor.display_name())
 	else:
 		_set_possession(possession_team, intended_receiver)
+	pending_receiver = null
 	action_timer = random.randf_range(0.8, 1.6)
 
 
@@ -299,10 +412,35 @@ func _resolve_shot() -> void:
 		_set_possession(defending_team, defending_team.get_player_by_number(9))
 		action_timer = 2.4
 	else:
-		var goalkeeper := defending_team.get_goalkeeper()
-		_set_possession(defending_team, goalkeeper)
-		event_announced.emit("Le gardien relance")
-		action_timer = 1.5
+		_award_restart(
+			FootballRulesEngine.RestartType.GOAL_KICK,
+			defending_team,
+			Vector2(112.0 if defending_team.attacks_right else 1168.0, 360.0)
+		)
+
+
+func _award_restart(
+	restart_type: FootballRulesEngine.RestartType,
+	team: FootballTeam,
+	position: Vector2
+) -> void:
+	if team == null:
+		return
+	ball.freeze_at(position)
+	var taker := (
+		team.get_goalkeeper()
+		if restart_type == FootballRulesEngine.RestartType.GOAL_KICK
+		else team.get_nearest_player(position, false)
+	)
+	if taker == null:
+		taker = team.get_nearest_player(position)
+	_set_possession(team, taker)
+	event_announced.emit("%s pour %s" % [
+		rules.restart_label(restart_type),
+		team.display_name,
+	])
+	action_timer = 1.4
+	tackle_cooldown = 1.5
 
 
 func _set_possession(team: FootballTeam, player: DemoPlayer) -> void:
@@ -311,9 +449,13 @@ func _set_possession(team: FootballTeam, player: DemoPlayer) -> void:
 
 	possession_team = team
 	possessor = player
-	if possessor != null:
+	last_touch_team = team
+	if is_instance_valid(possessor):
 		possessor.set_has_ball(true)
-		ball.follow(possessor, Vector2(18.0 if team.attacks_right else -18.0, 7.0))
+		ball.follow(
+			possessor,
+			Vector2(18.0 if team.attacks_right else -18.0, 7.0)
+		)
 
 
 func _opponent_of(team: FootballTeam) -> FootballTeam:

@@ -5,6 +5,7 @@ const TECHNICAL_MAX := 40
 const DISCIPLINE_MAX := 20
 const POSITIONING_MAX := 25
 const RESPONSE_MAX := 15
+const METERS_PER_PIXEL := 105.0 / 1152.0
 
 
 func evaluate(
@@ -106,11 +107,10 @@ func _discipline_feedback(
 
 
 func _positioning_feedback(incident: IncidentData, distance: float) -> String:
-	if distance < incident.minimum_observation_distance:
-		return "Position très proche (%.0f unités) : le champ de vision est réduit." % distance
+	var distance_meters := distance * METERS_PER_PIXEL
 	if distance > incident.maximum_observation_distance:
-		return "Position trop éloignée (%.0f unités) : rapproche-toi de l'action." % distance
-	return "Bonne distance d'observation : %.0f unités." % distance
+		return "Position trop éloignée (%.0f m) : rapproche-toi de l'action." % distance_meters
+	return "Bonne distance d'observation : %.0f m." % distance_meters
 
 
 func _response_feedback(incident: IncidentData, response_time: float) -> String:

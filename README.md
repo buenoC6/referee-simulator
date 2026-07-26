@@ -10,12 +10,20 @@ Le but de ce dépôt est double :
 ## Ce qui est déjà jouable
 
 - déplacement de l'arbitre avec `ZQSD` ;
+- indicateur de proximité avec le ballon, sans cible artificielle à suivre ;
+- placement suivi pendant tout le match et intégré au rapport final ;
+- position d'observation figée au contact, avec moins de temps si l'action est mal vue ;
 - menu principal présentant le contexte et lançant une partie solo ;
 - match accéléré de trois minutes avec deux équipes de 11 joueurs ;
-- IA simplifiée : formations, possession, passes, pressing, interceptions, tirs et buts ;
+- 16 joueurs nommés par équipe : 11 titulaires et 5 remplaçants ;
+- IA individuelle par rôle guidée par une tactique d'équipe commune ;
+- possession, passes, pressing, interceptions, tirs, buts et remplacement à la 60e ;
+- sorties de balle, touches, corners, coups de pied de but et hors-jeu simplifié ;
 - plusieurs fenêtres de décision arbitrale limitées dans le temps ;
 - coup de sifflet avec `Espace` ;
 - choix de la décision technique et disciplinaire ;
+- cartons attachés aux joueurs, second avertissement et exclusion effective ;
+- feuille de match latérale actualisée en direct ;
 - note détaillée sur la décision, la discipline, le positionnement et le délai ;
 - possibilité de rejouer immédiatement.
 
@@ -57,9 +65,10 @@ gameplay/
 ├── match/         # Scène principale et boucle de partie
 ├── players/       # Joueurs de démonstration
 ├── referee/       # Contrôle du personnage arbitre
+├── rules/         # Calculs purs liés aux Lois du Jeu
 ├── simulation/    # Décisions autonomes du match
 └── teams/         # Effectifs, rôles et formations
-ui/                # HUD, décision et écran de résultats
+ui/                # HUD, feuille de match, décision et résultats
 tests/             # Tests headless très légers
 docs/              # Architecture, apprentissage et décisions
 ```
@@ -73,15 +82,18 @@ Les dossiers suivent les recommandations Godot : fichiers et dossiers en `snake_
 3. [`gameplay/match/match.tscn`](gameplay/match/match.tscn) — composition du match ;
 4. [`gameplay/match/match.gd`](gameplay/match/match.gd) — machine à états de la partie ;
 5. [`gameplay/referee/referee.gd`](gameplay/referee/referee.gd) — entrées et mouvement ;
-6. [`gameplay/incidents/incident_data.gd`](gameplay/incidents/incident_data.gd) — séparation entre données et comportement ;
-7. [`gameplay/evaluation/evaluation_service.gd`](gameplay/evaluation/evaluation_service.gd) — logique sans dépendance à une scène ;
-8. [`docs/architecture.md`](docs/architecture.md) — explication complète des responsabilités.
+6. [`gameplay/referee/positioning_model.gd`](gameplay/referee/positioning_model.gd) — proximité et qualité d'observation ;
+7. [`gameplay/incidents/incident_data.gd`](gameplay/incidents/incident_data.gd) — séparation entre données et comportement ;
+8. [`gameplay/evaluation/evaluation_service.gd`](gameplay/evaluation/evaluation_service.gd) — logique sans dépendance à une scène ;
+9. [`docs/architecture.md`](docs/architecture.md) — explication complète des responsabilités.
+10. [`docs/rules_scope.md`](docs/rules_scope.md) — règles présentes et limites connues.
 
 ## Philosophie du prototype
 
-Ce socle propose un match complet accéléré, mais son IA reste volontairement
-lisible et simplifiée. Elle permet de tester le cœur du jeu sans prétendre
-reproduire toutes les tactiques du football professionnel :
+Ce socle propose un match complet accéléré, mais son IA et son arbitrage restent
+volontairement lisibles et simplifiés. Ils permettent de tester le cœur du jeu
+sans prétendre reproduire une simulation professionnelle ou l'intégralité des
+Lois du Jeu :
 
 ```text
 suivre l'action

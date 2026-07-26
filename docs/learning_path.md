@@ -85,9 +85,12 @@ Ouvre `football_team.gd`, puis `match_simulation.gd`.
 
 Observe la séparation :
 
-- l’équipe sait quels joueurs elle possède et où son bloc doit se placer ;
+- `PlayerProfile` contient l'identité, le statut et les cartons ;
+- `TeamTactics` contient les consignes communes ;
+- chaque joueur calcule sa cible à partir de son rôle et de ces consignes ;
+- l’équipe sait quels profils elle possède et quels joueurs sont sur le terrain ;
 - la simulation sait qui possède le ballon et choisit la prochaine action ;
-- le joueur sait uniquement comment atteindre une position cible ;
+- le moteur de règles décide des reprises et du hors-jeu ;
 - le match orchestre l’arbitrage, sans décider des passes.
 
 Exercice :
@@ -96,3 +99,33 @@ Exercice :
 - change l’intervalle des incidents ;
 - augmente légèrement la probabilité de but ;
 - vérifie chaque changement séparément.
+
+## Étape 9 — Effectif et règles
+
+Ouvre `player_profile.gd`, `football_rules_engine.gd`, puis
+`ui/roster/roster_panel.gd`.
+
+Exercice :
+
+- ajoute un sixième remplaçant fictif aux deux listes ;
+- adapte le test qui attend actuellement 16 profils ;
+- ajoute un test de hors-jeu pour une attaque vers la gauche ;
+- lance les smoke tests avant de modifier la simulation.
+
+## Étape 10 — Placement arbitral
+
+Ouvre `positioning_model.gd`, puis cherche `_update_positioning()` dans
+`match.gd`.
+
+Observe la séparation :
+
+- le modèle calcule une qualité à partir de deux positions ;
+- le HUD traduit une valeur numérique en retour compréhensible ;
+- le match cumule la qualité et mémorise la position au moment du contact.
+
+Exercice :
+
+- change `CLEAR_VIEW_DISTANCE` de 230 à 180 ;
+- observe quand l'indicateur passe de « nette » à « correcte » ;
+- adapte ensuite `LOST_VIEW_DISTANCE` ;
+- vérifie que les tests de placement continuent à passer.

@@ -2,7 +2,7 @@
 
 ## Objectif
 
-L'architecture optimise d'abord la compréhension et la capacité à modifier une petite partie sans casser les autres. Elle prend en charge un match 11 contre 11 simplifié sans anticiper une simulation de football professionnelle.
+L'architecture optimise d'abord la compréhension et la capacité à modifier une petite partie sans casser les autres. Elle prend en charge un match 11 contre 11 simplifié, des effectifs de 16 joueurs et un premier sous-ensemble des Lois du Jeu sans anticiper une simulation professionnelle.
 
 ## Les briques Godot utilisées
 
@@ -46,9 +46,14 @@ DecisionPanel
 | `app.gd` | Afficher le menu ou le match et gérer leur cycle de vie | Contenir la logique du match |
 | `main_menu.gd` | Présenter le contexte et émettre les intentions du joueur | Charger directement la scène de match |
 | `match.gd` | Orchestrer les phases et connecter les composants | Connaître les détails du dessin des acteurs |
-| `football_team.gd` | Créer 11 joueurs, conserver leur rôle et déplacer le bloc | Décider des passes et des tirs |
-| `match_simulation.gd` | Gérer possession, passes, pression, tirs, buts et fautes | Afficher le HUD ou noter l’arbitre |
+| `player_profile.gd` | Conserver identité, statut d'effectif et sanctions | Déplacer le personnage |
+| `demo_player.gd` | Déplacer un joueur et calculer sa cible selon son rôle | Choisir les reprises ou afficher l'UI |
+| `team_tactics.gd` | Définir pressing, compacité, largeur et intention | Contrôler directement un joueur |
+| `football_team.gd` | Gérer 16 profils, les joueurs en jeu et les remplacements | Décider des passes et des tirs |
+| `match_simulation.gd` | Gérer possession, actions, score et rythme du match | Afficher le HUD ou définir les lois |
+| `football_rules_engine.gd` | Détecter sorties, reprises et position de hors-jeu | Déplacer les joueurs ou noter l’arbitre |
 | `referee.gd` | Lire les entrées et déplacer l'arbitre | Calculer la note |
+| `positioning_model.gd` | Convertir la distance à l'action en qualité de vue et en temps de réaction | Dessiner une cible ou piloter les entrées |
 | `incident_director.gd` | Ouvrir et fermer la fenêtre de décision | Afficher l'interface |
 | `incident_data.gd` | Définir les données et libellés d'une situation | Piloter la partie |
 | `evaluation_service.gd` | Produire un résultat déterministe | Modifier la scène |
@@ -79,22 +84,78 @@ Une machine à états explicite évite de multiplier des booléens difficiles à
 
 ## Simulation 11 contre 11
 
-Chaque équipe instancie dynamiquement 11 fois la même scène de joueur puis lui
-attribue un numéro, un rôle et une position de référence dans un 4-3-3.
+Chaque équipe construit 16 `PlayerProfile`, puis instancie la même scène
+`DemoPlayer` pour les onze titulaires d'un 4-3-3. Un profil reste une donnée :
+le nœud représente uniquement le joueur actuellement présent sur le terrain.
+
+La tactique fonctionne en deux étages :
+
+1. `FootballTeam` publie le contexte commun : possession, ballon, porteur,
+   joueur chargé du pressing et paramètres de `TeamTactics` ;
+2. chaque `DemoPlayer` calcule sa propre cible selon son rôle, sa position de
+   référence, sa fatigue et un léger biais individuel déterministe.
+
+Les états `HOLD_SHAPE`, `SUPPORT`, `PRESS`, `CARRY` et `RECOVER` permettent de
+lire immédiatement l'intention d'un joueur dans le débogueur.
 
 `MatchSimulation` maintient une source de vérité unique pour :
 
 - l’équipe en possession et le porteur ;
-- les déplacements collectifs autour du ballon ;
 - le choix entre progression, passe et tir ;
-- le pressing du défenseur le plus proche ;
 - les interceptions et changements de possession ;
-- le score et les remises en jeu ;
+- le score et la demande de remise en jeu ;
 - le déclenchement périodique d’incidents arbitrables.
 
-Cette IA est une machine de simulation destinée au gameplay de l’arbitre. Elle
-ne modélise pas encore la tactique individuelle, les statistiques des joueurs,
-les hors-jeu, les coups de pied arrêtés détaillés ou la physique réelle du ballon.
+`FootballRulesEngine` détermine séparément si le ballon est sorti, à quelle
+équipe revient une touche, un corner ou un coup de pied de but et si le
+destinataire d'une passe se trouvait en position de hors-jeu. Le périmètre exact
+et ses limites sont documentés dans `docs/rules_scope.md`.
+
+## Effectif et sanctions
+
+`PlayerProfile.status` distingue titulaire, remplaçant, remplacé et exclu. La
+feuille de match ne maintient donc aucune copie de cette information : elle lit
+les profils et se reconstruit à chaque signal `roster_changed`.
+
+```text
+Décision disciplinaire
+  → MatchSimulation
+    → FootballTeam
+      → PlayerProfile
+        → roster_changed
+          → RosterPanel
+```
+
+Un premier carton jaune reste attaché au profil. Un second jaune ou un rouge
+retire le nœud correspondant de `FootballTeam.players` : l'équipe continue
+réellement avec un joueur de moins.
+
+## Placement de l'arbitre
+
+`PositioningModel` mesure directement la distance entre l'arbitre et le ballon.
+Jusqu'à environ 21 mètres, la vue est considérée nette. Au-delà, sa qualité
+diminue progressivement jusqu'à considérer l'action comme perdue.
+
+Pendant `PLAYING`, `Match` échantillonne cette proximité. La moyenne représente
+la moitié des points de placement du rapport ;
+l'autre moitié vient de la position exacte lors des contacts.
+
+```text
+Distance arbitre ↔ ballon
+  → PositioningModel.proximity_quality
+    ├─ MatchHud indique nette / correcte / lointaine / perdue
+    └─ Match accumule la qualité dans le temps
+
+Contact
+  → position de l'arbitre mémorisée immédiatement
+    → déplacements bloqués pendant l'observation
+      ├─ fenêtre de décision raccourcie si la vue était mauvaise
+      ├─ identité du fautif masquée à grande distance
+      └─ marqueur de contact moins visible
+```
+
+Il n'existe aucun point précis à poursuivre : le joueur regarde le ballon et les
+duels, puis choisit lui-même comment rester suffisamment proche.
 
 ## Évolution attendue
 
@@ -102,9 +163,9 @@ Quand le prototype sera validé :
 
 1. ajouter d'autres ressources `IncidentData` ;
 2. distinguer plusieurs familles de fautes produites par la simulation ;
-3. ajouter hors-jeu, sorties de balle et coups de pied arrêtés ;
+3. rendre les reprises visibles avant que le jeu reparte ;
 4. tester et calibrer les décisions de passes, tirs et pressing ;
-5. introduire des profils de joueurs et des styles d’équipe si le gameplay le justifie.
+5. ajouter les fenêtres de remplacement et les changements tactiques.
 
 ## Choix volontairement absents
 

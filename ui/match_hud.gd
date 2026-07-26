@@ -8,6 +8,9 @@ class_name MatchHud
 @onready var banner_title: Label = %BannerTitle
 @onready var banner_detail: Label = %BannerDetail
 @onready var controls_label: Label = %ControlsLabel
+@onready var observation_panel: PanelContainer = %ObservationPanel
+@onready var observation_label: Label = %ObservationLabel
+@onready var observation_detail: Label = %ObservationDetail
 
 
 func _ready() -> void:
@@ -30,6 +33,24 @@ func set_controls(text: String) -> void:
 	controls_label.text = text
 
 
+func set_action_proximity(
+	quality: float,
+	label: String,
+	distance_meters: float
+) -> void:
+	observation_label.text = "VISION DE L'ACTION · %s" % label
+	observation_detail.text = "Ballon à %.0f m" % distance_meters
+	observation_label.add_theme_color_override(
+		"font_color",
+		_positioning_color(quality)
+	)
+	observation_panel.visible = true
+
+
+func hide_action_proximity() -> void:
+	observation_panel.visible = false
+
+
 func show_incident(title: String, detail: String) -> void:
 	banner_title.text = title
 	banner_detail.text = detail
@@ -42,3 +63,11 @@ func update_incident_countdown(seconds_remaining: float) -> void:
 
 func hide_incident() -> void:
 	banner_panel.visible = false
+
+
+func _positioning_color(quality: float) -> Color:
+	if quality >= 0.62:
+		return Color("#4ade80")
+	if quality >= 0.34:
+		return Color("#facc15")
+	return Color("#fb7185")

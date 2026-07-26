@@ -6,12 +6,13 @@ signal whistle_requested
 @export_range(100.0, 600.0, 10.0) var speed: float = 290.0
 @export var movement_bounds := Rect2(84.0, 84.0, 1112.0, 552.0)
 
-var input_enabled: bool = true
+var movement_enabled: bool = true
+var whistle_enabled: bool = true
 var facing_direction := Vector2.UP
 
 
 func _physics_process(_delta: float) -> void:
-	if not input_enabled:
+	if not movement_enabled:
 		velocity = Vector2.ZERO
 		return
 
@@ -43,14 +44,21 @@ func _physics_process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if input_enabled and event.is_action_pressed("whistle"):
+	if whistle_enabled and event.is_action_pressed("whistle"):
 		whistle_requested.emit()
 		get_viewport().set_input_as_handled()
 
 
 func set_input_enabled(value: bool) -> void:
-	input_enabled = value
-	if not input_enabled:
+	movement_enabled = value
+	whistle_enabled = value
+	if not movement_enabled:
+		velocity = Vector2.ZERO
+
+
+func set_movement_enabled(value: bool) -> void:
+	movement_enabled = value
+	if not movement_enabled:
 		velocity = Vector2.ZERO
 
 
@@ -73,4 +81,3 @@ func _draw() -> void:
 		Color("#fff1b8"),
 		3.0
 	)
-

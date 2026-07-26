@@ -1,0 +1,83 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/roster/roster_panel.gd" id="1_roster"]
+[ext_resource type="Theme" path="res://ui/theme/game_theme.tres" id="2_theme"]
+
+[node name="RosterPanel" type="CanvasLayer"]
+layer = 11
+script = ExtResource("1_roster")
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 6
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -284.0
+offset_top = 106.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="Panel" type="PanelContainer" parent="Margin"]
+layout_mode = 2
+
+[node name="Column" type="VBoxContainer" parent="Margin/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Eyebrow" type="Label" parent="Margin/Panel/Column"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.984314, 0.768627, 0.235294, 1)
+theme_override_font_sizes/font_size = 12
+text = "FEUILLE DE MATCH"
+
+[node name="TeamLabel" type="Label" parent="Margin/Panel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 23
+text = "BLEUS"
+
+[node name="TeamButtons" type="HBoxContainer" parent="Margin/Panel/Column"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BlueButton" type="Button" parent="Margin/Panel/Column/TeamButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = null
+text = "Bleus"
+
+[node name="RedButton" type="Button" parent="Margin/Panel/Column/TeamButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = null
+text = "Rouges"
+
+[node name="SummaryLabel" type="Label" parent="Margin/Panel/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65098, 0.717647, 0.792157, 1)
+theme_override_font_sizes/font_size = 12
+text = "11 sur le terrain  ·  0 remplacement"
+
+[node name="Separator" type="HSeparator" parent="Margin/Panel/Column"]
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/Panel/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="PlayerList" type="VBoxContainer" parent="Margin/Panel/Column/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1

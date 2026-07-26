@@ -25,7 +25,7 @@ enum DisciplineDecision {
 
 @export_category("Observation")
 @export var incident_position := Vector2.ZERO
-@export_range(40.0, 500.0, 5.0) var minimum_observation_distance: float = 90.0
+@export_range(0.0, 500.0, 5.0) var minimum_observation_distance: float = 0.0
 @export_range(40.0, 500.0, 5.0) var maximum_observation_distance: float = 230.0
 @export_range(1.0, 10.0, 0.25) var maximum_response_time: float = 4.0
 
@@ -52,4 +52,3 @@ static func discipline_decision_label(decision: DisciplineDecision) -> String:
 			return "Carton rouge"
 		_:
 			return "Sanction inconnue"
-

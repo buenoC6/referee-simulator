@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://gameplay/match/match.gd" id="1_match"]
 [ext_resource type="PackedScene" path="res://gameplay/field/football_pitch.tscn" id="2_pitch"]
@@ -11,6 +11,8 @@
 [ext_resource type="PackedScene" path="res://ui/match_hud.tscn" id="9_hud"]
 [ext_resource type="PackedScene" path="res://ui/decision_panel.tscn" id="10_decision"]
 [ext_resource type="PackedScene" path="res://ui/results_panel.tscn" id="11_results"]
+[ext_resource type="Script" path="res://gameplay/rules/football_rules_engine.gd" id="12_rules"]
+[ext_resource type="PackedScene" path="res://ui/roster/roster_panel.tscn" id="13_roster"]
 
 [node name="Match" type="Node2D"]
 script = ExtResource("1_match")
@@ -33,7 +35,7 @@ attacks_right = false
 position = Vector2(640, 360)
 
 [node name="Referee" parent="." instance=ExtResource("3_referee")]
-position = Vector2(640, 585)
+position = Vector2(485, 420)
 z_index = 4
 
 [node name="IncidentMarker" type="Node2D" parent="."]
@@ -44,10 +46,15 @@ script = ExtResource("8_marker")
 [node name="MatchSimulation" type="Node" parent="."]
 script = ExtResource("6_simulation")
 
+[node name="FootballRulesEngine" type="Node" parent="."]
+script = ExtResource("12_rules")
+
 [node name="IncidentDirector" type="Node" parent="."]
 script = ExtResource("7_director")
 
 [node name="MatchHud" parent="." instance=ExtResource("9_hud")]
+
+[node name="RosterPanel" parent="." instance=ExtResource("13_roster")]
 
 [node name="DecisionPanel" parent="." instance=ExtResource("10_decision")]
 

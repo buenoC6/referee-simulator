@@ -57,8 +57,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _grade_for(score: int) -> String:
 	if score >= 90:
 		return "EXCELLENTE DÉCISION"
-	if score >= 75:
+	if score >= 80:
 		return "BON ARBITRAGE"
-	if score >= 55:
+	if score >= 60:
 		return "DÉCISION PERFECTIBLE"
 	return "ACTION À REVOIR"

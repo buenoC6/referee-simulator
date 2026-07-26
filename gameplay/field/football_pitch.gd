@@ -13,7 +13,7 @@ func _ready() -> void:
 func _draw() -> void:
 	# The pitch is drawn in code on purpose: the prototype stays runnable without
 	# external assets, and every primitive is easy to inspect while learning.
-	draw_rect(Rect2(Vector2.ZERO, Vector2(1280.0, 720.0)), Color("#111923"))
+	draw_rect(Rect2(Vector2.ZERO, Vector2(1580.0, 720.0)), Color("#111923"))
 	draw_rect(FIELD_RECT.grow(14.0), Color("#07130d"))
 
 	var stripe_width: float = FIELD_RECT.size.x / 12.0
@@ -65,4 +65,3 @@ func _draw_penalty_area(on_left: bool) -> void:
 		false,
 		LINE_WIDTH
 	)
-

@@ -34,4 +34,3 @@ func _replace_screen(next_screen: Node) -> void:
 
 func _quit_game() -> void:
 	get_tree().quit()
-
