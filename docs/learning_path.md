@@ -10,8 +10,13 @@ Ouvre `core/app.tscn`, puis `core/app.gd`.
 
 - `App` est la première scène chargée ;
 - elle instancie soit le menu, soit le match ;
+- elle conserve la session légère du tournoi ou de la carrière entre deux
+  affectations ;
 - le menu demande une partie avec un signal sans connaître le fichier du match ;
 - cette séparation évite que les écrans deviennent dépendants les uns des autres.
+
+Lis ensuite `gameplay/modes/game_mode_catalog.gd`. Les modes sont des données :
+ajouter un tour au tournoi ne demande pas de dupliquer une scène de match.
 
 ## Étape 1 — Scènes et nœuds
 
