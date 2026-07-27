@@ -32,7 +32,8 @@ layout_mode = 2
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Eyebrow" type="Label" parent="Center/Card/Column"]
+[node name="EyebrowLabel" type="Label" parent="Center/Card/Column"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.917647, 0.843137, 0.603922, 1)
 theme_override_font_sizes/font_size = 13
@@ -104,3 +105,11 @@ custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Rejouer"
+
+[node name="ContinueButton" type="Button" parent="Center/Card/Column/Actions"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Affectation suivante"

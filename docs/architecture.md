@@ -21,7 +21,7 @@ MATCH CONTINU
 ARRÊT DE JEU
   ├─ chronomètre, ballon et acteurs figés
   ├─ arbitre toujours mobile, caméra toujours active
-  ├─ première décision : Faute ou Hors-jeu
+  ├─ première décision : Faute, Hors-jeu, But ou Aucune infraction
   ├─ Faute : reprise, sanction et équipe bénéficiaire
   ├─ lieu du sifflet mémorisé et marqué au sol
   ├─ joueur au centre du viseur mis en évidence
@@ -38,6 +38,53 @@ Le premier coup d'envoi et celui de la seconde période passent par
 dans leur propre moitié, sauf le botteur autorisé au centre, et les adversaires
 sont repoussés hors du rayon de 9,15 m. Le ballon reste sur le point central
 jusqu'au sifflet, puis une passe visible le met réellement en jeu.
+
+## Modes de jeu et session
+
+Les trois modes utilisent exactement la même scène de match. Le mode ne crée
+donc ni copie du terrain, ni variante de l'IA :
+
+```text
+MainMenu
+  └─ émet « jouer » avec le mode et les réglages
+        ↓
+RefereeSimulatorApp
+  ├─ conserve mode, affectation, stade et graine de session
+  ├─ demande l'enjeu courant à GameModeCatalog
+  └─ instancie RefereePerspectiveMatch
+        ↓
+ResultsPanel
+  ├─ rejouer → même affectation et même graine
+  └─ continuer → affectation suivante
+```
+
+`GameModeCatalog` est une donnée statique lisible :
+
+- la partie rapide contient un match et laisse choisir son enjeu ;
+- le tournoi mondial fictif contient cinq tours, des poules à la finale ;
+- la carrière internationale contient cinq désignations de difficulté
+  croissante.
+
+`RefereeSimulatorApp` est le propriétaire de la session en mémoire. Il dérive
+une graine déterministe différente pour chaque affectation, puis transmet
+seulement le contexte courant au match. Cette frontière permettra d'ajouter
+plus tard sauvegarde, réputation et sélection des désignations sans placer ces
+responsabilités dans la simulation 3D.
+
+La coupe reste volontairement fictive : elle reproduit une progression sportive
+mondiale sans dépendre d'une marque, d'un logo ou d'une licence officielle.
+
+## Pause
+
+`PauseMenu` est un `CanvasLayer` en `PROCESS_MODE_ALWAYS`. Quand `Échap` est
+pressé, le match désactive l'entrée de l'arbitre, affiche le panneau, puis met
+le `SceneTree` en pause. L'IA, la physique, le chronomètre et l'audio cessent
+alors d'avancer ensemble.
+
+Le panneau ne manipule pas le match directement : il émet `resume_requested`,
+`restart_requested` ou `main_menu_requested`. Le match restaure ensuite le bon
+type d'entrée — contrôle complet en jeu, ou inspection sans sifflet pendant une
+décision — avant de reprendre.
 
 ## Intelligence collective et possession
 
@@ -69,28 +116,89 @@ les surfaces défendues et les lignes de hors-jeu changent de côté. L'équipe 
 n'a pas donné le premier coup d'envoi attend le signal du joueur pour lancer la
 seconde période.
 
-La caméra est portée par `RefereeController3D`. Au coup de sifflet,
+La caméra est portée par `RefereeController3D`. Lors de l'événement,
 `PerspectiveObservationModel` mesure la distance, l'angle horizontal et une
-occultation par lancer de rayon. Ces données expliquent les indices dont
-l'arbitre disposait ; elles ne révèlent pas automatiquement la décision correcte.
+occultation par lancer de rayon. Ces données définissent la fenêtre disponible
+pour réagir, les points de placement et les indices dont l'arbitre disposait ;
+elles ne révèlent pas automatiquement la décision correcte.
+
+`PerspectiveDecisionScoring` transforme ensuite une décision en trois composantes
+indépendantes et testables : 60 points techniques, 25 points de placement et
+15 points de rapidité. La scène orchestre ces calculs, mais ne contient plus
+leur formule.
 
 `OfficiatingCatalog` sépare les données réglementaires de l'interface. Ses
-familles conservent plus de 35 motifs pratiques pour les futures itérations,
-mais le panneau actif n'en expose volontairement que deux familles.
+familles conservent plus de 35 motifs pratiques pour les futures itérations.
+Le panneau actif expose quatre décisions nécessaires à la boucle actuelle.
 
 `OfficiatingPanel` utilise une divulgation progressive. `1` choisit la faute et
 ouvre deux rangées compactes : `4`/`5` pour coup franc ou penalty, puis `6` à
 `9` pour aucune sanction, avertissement verbal, jaune ou rouge. `T` change
 l'équipe bénéficiaire, `E` identifie le joueur visé et `Entrée` confirme. `2`
-conserve le flux hors-jeu et `3` demande la VAR. Les choix sont également
-cliquables lorsque le pointeur est libéré.
+conserve le flux hors-jeu, `G` accorde un but, `N` constate l'absence
+d'infraction et `3` demande la VAR. Les choix sont également cliquables lorsque
+le pointeur est libéré.
 
 Le ballon au moment du sifflet définit `whistle_position`. Un anneau au sol
 rend ce lieu visible durant l'inspection ; un coup franc replace le ballon et
 le joueur de l'équipe choisie exactement à cet endroit. Un penalty utilise le
 point réglementaire. L'avantage ne figure pas dans le menu après sifflet :
 `V` le signale pendant le jeu, puis la simulation mémorise la décision sans
-arrêter le chronomètre ni modifier la possession.
+arrêter le chronomètre ni modifier la possession. Une sanction attendue reste
+en attente et est appliquée au joueur concerné lors du prochain arrêt.
+
+## Reproductibilité et outils de test
+
+Le menu génère une graine entière positive, modifiable avant de lancer la
+partie. `RefereePerspectiveMatch` applique cette graine à son unique
+`RandomNumberGenerator` au début de chaque match. Le bouton Rejouer réinitialise
+donc le générateur au même état au lieu de poursuivre la séquence précédente.
+La graine est affichée dans le HUD et incluse dans le contexte du match afin
+qu'un problème puisse être reproduit.
+
+Une option du menu active quatre raccourcis réservés au test :
+
+- `F1` force le tacle téméraire actuellement jouable ;
+- `F2` force un hors-jeu avec signal de l'assistant ;
+- `F3` force un but potentiel qui attend la confirmation de l'arbitre ;
+- `F4` force une action sans infraction.
+
+Tous passent par `force_debug_event` et produisent la même structure de vérité
+que la simulation normale. Ces outils constituent la première interface du
+futur `IncidentDirector` et évitent aux tests manuels d'attendre un tirage
+aléatoire.
+
+## Ambiance sonore procédurale
+
+`MatchAudioDirector` isole entièrement le son de la simulation. Il utilise son
+propre générateur aléatoire : varier la hauteur d'un cri ou d'une frappe ne
+consomme donc jamais la séquence qui détermine les actions du match.
+
+Les échantillons PCM 16 bits sont construits une seule fois en mémoire avec
+`AudioStreamWAV`, puis partagés par toutes les instances :
+
+- rumeur de stade stéréo et bouclée ;
+- sifflets à une, deux ou trois impulsions ;
+- frappe, tir et contrôle du ballon ;
+- contact de joueurs ;
+- protestation vocale synthétique ;
+- anticipation, approbation, huées et déception du public.
+
+Un pool de lecteurs non spatialisés superpose la foule et les sifflets. Un
+second pool de `AudioStreamPlayer3D` place les frappes, contacts et joueurs sur
+le terrain. La tension augmente progressivement le niveau de la rumeur ; le
+public réagit selon l'équipe qui marque, la décision rendue et l'équipe lésée.
+Le mode décision atténue le fond sonore sans le couper. `M` coupe ou rétablit
+l'ensemble du système.
+
+Cette première couche ne remplace pas une future direction sonore enregistrée.
+Elle donne immédiatement du rythme au prototype, reste libre de toute licence
+externe et définit les événements auxquels de vrais assets pourront ensuite
+être raccordés.
+
+Un tir qui franchit la ligne ne modifie pas immédiatement le score. Les acteurs
+s'immobilisent, l'arbitre confirme ou refuse le but, puis seulement la décision
+met à jour le score et prépare le coup d'envoi de l'équipe qui a encaissé.
 
 `FootballLaws3D` centralise les invariants géométriques de la simulation active :
 dimensions du terrain, moitié défendue, direction d'attaque, distance au rond
@@ -119,7 +227,7 @@ Deux chemins utilisent le même mécanisme :
 
 L'annonce indique l'équipe et le numéro du joueur à revoir. Celui-ci reçoit un
 marqueur violet `VAR · REVUE`, visible lorsque l'arbitre revient vers l'action.
-Une alerte VAR prolonge la mémoire de l'incident de six à dix secondes pour
+Une alerte VAR ajoute quatre secondes à la fenêtre d'observation calculée pour
 laisser au joueur le temps de siffler. Le marqueur disparaît après la décision,
 l'expiration de l'action ou la fin du match.
 
@@ -149,10 +257,11 @@ au calme. Il ne modifie pas les règles : il modifie la pression humaine qui
 entoure leur application.
 
 Après chaque décision, le modèle compare en interne la famille choisie, la
-reprise déduite et l'identité du joueur désigné à l'événement simulé. Le joueur
-ne reçoit pas une note : le résultat visible est la réaction des Bleus et des
-Rouges. Une équipe lésée s'énerve fortement ; une décision cohérente calme
-l'équipe bénéficiaire, même si le fautif peut encore contester.
+reprise déduite et l'identité du joueur désigné à l'événement simulé. La
+réaction des équipes reste immédiate ; le rapport final ajoute une évaluation
+sur 100 composée de la décision, du placement et du temps de réaction. Une
+équipe lésée s'énerve fortement ; une décision cohérente calme l'équipe
+bénéficiaire, même si le fautif peut encore contester.
 
 La tension maximale pilote trois effets immédiatement jouables :
 
@@ -252,9 +361,11 @@ DecisionPanel
 
 | Élément | Responsabilité | Ne doit pas faire |
 | --- | --- | --- |
-| `app.gd` | Afficher le menu ou le match et gérer leur cycle de vie | Contenir la logique du match |
+| `app.gd` | Afficher les écrans et conserver la session de mode courante | Contenir la logique du match |
+| `game_mode_catalog.gd` | Décrire modes, affectations et progression déterministe | Sauvegarder une carrière ou instancier une scène |
 | `main_menu.gd` | Présenter le contexte et émettre les intentions du joueur | Charger directement la scène de match |
-| `match.gd` | Orchestrer les phases et connecter les composants | Connaître les détails du dessin des acteurs |
+| `referee_perspective_match.gd` | Orchestrer les phases et connecter les composants 3D | Posséder la progression de carrière |
+| `pause_menu.gd` | Présenter les actions de pause et émettre les choix | Modifier directement l'IA ou la physique |
 | `player_profile.gd` | Conserver identité, statut d'effectif et sanctions | Déplacer le personnage |
 | `demo_player.gd` | Déplacer un joueur et calculer sa cible selon son rôle | Choisir les reprises ou afficher l'UI |
 | `team_tactics.gd` | Définir pressing, compacité, largeur et intention | Contrôler directement un joueur |
@@ -272,24 +383,26 @@ DecisionPanel
 
 ```text
 MENU PRINCIPAL
-  ↓ partie solo
+  ↓ partie rapide / tournoi / carrière
 PRE_MATCH
-  ↓
-PLAYING ←─────────────────────────────┐
-  ├─ passe / tir / but → PLAYING      │
-  ├─ temps écoulé → RESULTS           │
-  └─ faute → INCIDENT_WINDOW          │
-                 ├─ expiration ─┐     │
-                 └─ sifflet → DECISION
-                                  ↓   │
-                              FEEDBACK┘
+  └─ sifflet → PLAYING
+                  ├─ 45′ → HALF_TIME ── sifflet ──┐
+                  ├─ sifflet → STOPPED_FOR_DECISION
+                  │                 └─ décision → PLAYING
+                  └─ 90′ / interruption → RESULTS
+
+PRE_MATCH / PLAYING / HALF_TIME / STOPPED_FOR_DECISION
+  └─ Échap → PAUSE SUPERPOSÉE → reprendre le même état
 
 RESULTS
   ├─ rejouer → PRE_MATCH
+  ├─ affectation suivante → nouveau PRE_MATCH
   └─ menu → MENU PRINCIPAL
 ```
 
-Une machine à états explicite évite de multiplier des booléens difficiles à combiner comme `is_started`, `is_paused`, `has_incident` et `showing_results`.
+La pause est superposée à la machine à états au moyen de `SceneTree.paused` :
+elle ne remplace jamais `PLAYING` ou `STOPPED_FOR_DECISION`. Cette séparation
+évite de multiplier des booléens difficiles à combiner.
 
 ## Simulation 11 contre 11
 

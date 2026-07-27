@@ -49,7 +49,7 @@ static func evaluate(
 		"angle_quality": angle_quality,
 		"quality": quality,
 		"positioning_score": roundi(quality * 25.0),
-		"response_window": lerpf(1.8, 4.5, quality),
+		"response_window": lerpf(3.0, 7.0, quality),
 		"label": _quality_label(quality, is_occluded),
 	}
 

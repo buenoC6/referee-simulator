@@ -79,15 +79,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	if event.is_action_pressed("ui_cancel") and DisplayServer.get_name() != "headless":
-		Input.mouse_mode = (
-			Input.MOUSE_MODE_VISIBLE
-			if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-			else Input.MOUSE_MODE_CAPTURED
-		)
-		get_viewport().set_input_as_handled()
-
-
 func set_movement_enabled(value: bool) -> void:
 	movement_enabled = value
 	if not movement_enabled:

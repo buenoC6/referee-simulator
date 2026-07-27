@@ -36,6 +36,7 @@ var decision_mode: bool = false
 func _ready() -> void:
 	incident_panel.visible = false
 	assistant_signal_label.visible = false
+	live_reading.visible = true
 
 
 func set_phase(text: String) -> void:
@@ -46,11 +47,23 @@ func set_objective(text: String) -> void:
 	objective_label.text = text
 
 
-func set_venue(stadium_name: String, city: String) -> void:
-	venue_label.text = "%s · %s" % [
-		stadium_name,
-		city,
-	]
+func set_venue(
+	stadium_name: String,
+	city: String,
+	match_seed: int = 0,
+	debug_tools_enabled: bool = false,
+	mode_context: String = ""
+) -> void:
+	var details := PackedStringArray()
+	if not mode_context.is_empty():
+		details.append(mode_context)
+	details.append(stadium_name)
+	details.append(city)
+	if match_seed > 0:
+		details.append("graine %d" % match_seed)
+	if debug_tools_enabled:
+		details.append("DEBUG")
+	venue_label.text = " · ".join(details)
 
 
 func set_team_identity(
@@ -147,6 +160,16 @@ func set_live_reading(
 	in_frame: bool
 ) -> void:
 	distance_label.text = "Distance %.0f m" % distance_meters
+	distance_label.add_theme_color_override(
+		"font_color",
+		(
+			Color("#86efac")
+			if distance_meters <= 18.0
+			else Color("#fde68a")
+			if distance_meters <= 32.0
+			else Color("#fda4af")
+		)
+	)
 	view_label.text = (
 		"Dans l’axe · %.0f°" % angle_degrees
 		if in_frame
@@ -184,8 +207,15 @@ func show_incident(title: String, detail: String) -> void:
 	incident_panel.visible = true
 
 
-func update_incident_countdown(seconds_remaining: float) -> void:
-	incident_detail.text = "Espace pour siffler · %.1f s restantes" % seconds_remaining
+func update_incident_countdown(
+	seconds_remaining: float,
+	observation_label: String = ""
+) -> void:
+	incident_detail.text = "%s%sEspace pour siffler · %.1f s restantes" % [
+		observation_label,
+		" · " if not observation_label.is_empty() else "",
+		seconds_remaining,
+	]
 
 
 func hide_incident() -> void:
@@ -201,7 +231,7 @@ func set_decision_mode(enabled: bool) -> void:
 	decision_mode = enabled
 	context_panel.visible = not enabled
 	tension_panel.visible = not enabled
-	live_reading.visible = false
+	live_reading.visible = not enabled
 	incident_panel.visible = false if enabled else incident_panel.visible
 	ball_direction_label.visible = not enabled
 	bottom_panel.visible = not enabled and not controls_label.text.is_empty()

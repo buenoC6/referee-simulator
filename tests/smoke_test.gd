@@ -13,6 +13,12 @@ const PerspectiveObservationModelClass = preload(
 const FootballTeamAIClass = preload(
 	"res://gameplay/perspective/football_team_ai.gd"
 )
+const MatchAudioDirectorClass = preload(
+	"res://gameplay/perspective/match_audio_director.gd"
+)
+const GameModeCatalogClass = preload(
+	"res://gameplay/modes/game_mode_catalog.gd"
+)
 const AppScene: PackedScene = preload("res://core/app.tscn")
 
 var failures: int = 0
@@ -25,8 +31,16 @@ func _init() -> void:
 func _run() -> void:
 	print("Running Referee Simulator smoke tests...")
 	_test_app_navigates_between_menu_and_solo_match()
+	_test_game_modes_progress_and_pause_cleanly()
+	_test_procedural_audio_palette()
+	_test_match_seed_replays_deterministically()
+	_test_debug_tools_force_core_events()
 	_test_detailed_foul_restart_flow()
 	_test_team_ai_builds_controlled_possession()
+	_test_goal_waits_for_referee_confirmation()
+	_test_offside_before_goal_keeps_priority()
+	_test_false_whistle_accepts_no_offence()
+	_test_perspective_decision_uses_observation_quality()
 	_test_visual_upgrade_and_ball_trajectory()
 	_test_lawful_kickoff_and_restarts()
 	_test_perfect_decision_scores_one_hundred()
@@ -56,6 +70,8 @@ func _test_app_navigates_between_menu_and_solo_match() -> void:
 		"menu exposes three home clubs and stadiums"
 	)
 	menu.stadium_option.select(1)
+	menu.seed_input.text = "424242"
+	menu.debug_check.button_pressed = true
 	menu.solo_requested.emit("qualifier")
 	_expect_equal(
 		app.current_screen is RefereePerspectiveMatch,
@@ -72,6 +88,12 @@ func _test_app_navigates_between_menu_and_solo_match() -> void:
 		match_scene.stadium_profile["id"],
 		"forge_united",
 		"selected home stadium reaches the simulation"
+	)
+	_expect_equal(
+		match_scene.match_seed == 424242
+			and match_scene.debug_tools_active,
+		true,
+		"seed and debug option reach the simulation"
 	)
 	_expect_equal(
 		match_scene.get_node("Referee/Camera3D") is Camera3D,
@@ -128,6 +150,13 @@ func _test_app_navigates_between_menu_and_solo_match() -> void:
 		"two touchline assistants are present"
 	)
 	_expect_equal(
+		match_scene.audio_director.ambience_stream != null
+			and match_scene.audio_director.ambience_stream.data.size() > 1000
+			and match_scene.audio_director.whistle_streams.size() == 4,
+		true,
+		"match builds a procedural stadium audio palette"
+	)
+	_expect_equal(
 		match_scene.phase,
 		RefereePerspectiveMatch.Phase.PRE_MATCH,
 		"match waits for the referee's opening whistle"
@@ -138,11 +167,22 @@ func _test_app_navigates_between_menu_and_solo_match() -> void:
 		RefereePerspectiveMatch.Phase.PLAYING,
 		"referee whistle starts the match"
 	)
+	_expect_equal(
+		match_scene.audio_director.event_count("whistle_kickoff") == 1
+			and match_scene.audio_director.event_count("ball_kick") >= 1,
+		true,
+		"kickoff triggers whistle and ball sounds"
+	)
 	match_scene._update_live_reading()
 	_expect_equal(
 		"BALLON" in match_scene.hud.ball_direction_label.text,
 		true,
 		"HUD continuously points toward the ball"
+	)
+	_expect_equal(
+		match_scene.hud.live_reading.visible,
+		true,
+		"live distance and viewing angle remain visible during play"
 	)
 	match_scene._register_offside_event(match_scene.blue_team[8])
 	_expect_equal(
@@ -216,8 +256,8 @@ func _test_app_navigates_between_menu_and_solo_match() -> void:
 	)
 	_expect_equal(
 		OfficiatingPanel.SIMPLE_ACTIONS.size(),
-		2,
-		"stoppage menu only exposes foul and offside"
+		4,
+		"stoppage menu exposes foul, offside, goal and no offence"
 	)
 	match_scene.officiating_panel._unhandled_input(
 		_pressed_physical_key(KEY_AMPERSAND, KEY_1)
@@ -261,6 +301,213 @@ func _test_app_navigates_between_menu_and_solo_match() -> void:
 	_expect_equal(app.current_screen is MainMenu, true, "match returns to menu")
 
 	app.free()
+
+
+func _test_game_modes_progress_and_pause_cleanly() -> void:
+	var app = AppScene.instantiate()
+	root.add_child(app)
+	var menu := app.current_screen as MainMenu
+	_expect_equal(
+		GameModeCatalogClass.profiles().size(),
+		3,
+		"menu model defines quick match, tournament and career"
+	)
+	menu.career_button.pressed.emit()
+	_expect_equal(
+		menu.selected_game_mode_id()
+			== GameModeCatalogClass.INTERNATIONAL_CAREER_ID
+			and menu._selected_importance_id() == "friendly"
+			and GameModeCatalogClass.stage(
+				GameModeCatalogClass.INTERNATIONAL_CAREER_ID,
+				4
+			)["importance_id"] == "final",
+		true,
+		"international career grows from a first appointment to a final"
+	)
+	menu.tournament_button.pressed.emit()
+	_expect_equal(
+		menu.selected_game_mode_id()
+			== GameModeCatalogClass.WORLD_TOURNAMENT_ID
+			and menu.importance_option.disabled
+			and menu.solo_button.text == "Commencer le tournoi",
+		true,
+		"tournament selection fixes its schedule and updates the call to action"
+	)
+	menu.seed_input.text = "4242"
+	menu.solo_requested.emit(menu._selected_importance_id())
+	var opening_match := app.current_screen as RefereePerspectiveMatch
+	_expect_equal(
+		app.current_mode_id == GameModeCatalogClass.WORLD_TOURNAMENT_ID
+			and app.current_stage_index == 0
+			and opening_match.match_importance_id == "group_stage",
+		true,
+		"world tournament starts with its group-stage assignment"
+	)
+	_expect_equal(
+		"Coupe internationale" in opening_match.hud.venue_label.text,
+		true,
+		"active HUD identifies the competition and assignment"
+	)
+	opening_match._finish_match()
+	_expect_equal(
+		opening_match.results_panel.continue_button.visible,
+		true,
+		"tournament result offers the next assignment"
+	)
+	opening_match.results_panel.continue_requested.emit()
+	var next_match := app.current_screen as RefereePerspectiveMatch
+	_expect_equal(
+		app.current_stage_index == 1
+			and next_match.match_importance_id == "knockout"
+			and next_match.match_seed
+			== GameModeCatalogClass.match_seed(4242, 1),
+		true,
+		"next tournament assignment advances difficulty and deterministic seed"
+	)
+
+	next_match._open_pause_menu()
+	_expect_equal(
+		paused
+			and next_match.pause_menu.visible
+			and not next_match.referee.movement_enabled,
+		true,
+		"pause menu freezes the scene and referee"
+	)
+	next_match.pause_menu.resume_requested.emit()
+	_expect_equal(
+		not paused
+			and not next_match.pause_menu.visible
+			and next_match.referee.movement_enabled,
+		true,
+		"resume closes the overlay and restores referee input"
+	)
+	next_match._open_pause_menu()
+	next_match.pause_menu.restart_requested.emit()
+	_expect_equal(
+		not paused
+			and next_match.phase == RefereePerspectiveMatch.Phase.PRE_MATCH
+			and next_match.match_seed
+			== GameModeCatalogClass.match_seed(4242, 1),
+		true,
+		"pause restart resets the same reproducible assignment"
+	)
+	app.free()
+	paused = false
+
+
+func _test_procedural_audio_palette() -> void:
+	var audio_director = MatchAudioDirectorClass.new()
+	root.add_child(audio_director)
+	audio_director.reset_for_match(20260727)
+	_expect_equal(
+		audio_director.ambience_stream.loop_mode
+			== AudioStreamWAV.LOOP_FORWARD
+			and audio_director.ambience_stream.stereo,
+		true,
+		"crowd ambience is a looping stereo stream"
+	)
+	audio_director.play_whistle("stoppage")
+	audio_director.play_ball_kick(Vector3.ZERO, true)
+	audio_director.play_contact(Vector3.ZERO, 1.0)
+	audio_director.play_player_protest(Vector3.ZERO, 0.8)
+	audio_director.play_goal_decision(0, true)
+	audio_director.play_goal_decision(1, true)
+	audio_director.play_decision_reaction(0.2, 12.0, 0.0, 1)
+	_expect_equal(
+		audio_director.event_count("whistle_stoppage") == 1
+			and audio_director.event_count("ball_shot") == 1
+			and audio_director.event_count("contact") == 1
+			and audio_director.event_count("player_protest") == 1,
+		true,
+		"procedural one-shots cover whistle, ball, contact and players"
+	)
+	_expect_equal(
+		audio_director.event_count("crowd_cheer_home") == 1
+			and audio_director.event_count("crowd_boo_away_goal") == 1
+			and audio_director.event_count("crowd_boo_decision") == 1,
+		true,
+		"crowd reacts differently to goals and contested decisions"
+	)
+	_expect_equal(
+		audio_director.toggle_muted()
+			and not audio_director.ambience_player.playing,
+		true,
+		"audio can be muted during a match"
+	)
+	audio_director.free()
+
+
+func _test_match_seed_replays_deterministically() -> void:
+	var match_scene := preload(
+		"res://gameplay/perspective/referee_perspective_match.tscn"
+	).instantiate() as RefereePerspectiveMatch
+	match_scene.configure_match(
+		"group_stage",
+		StadiumCatalog.DEFAULT_ID,
+		731942,
+		false
+	)
+	root.add_child(match_scene)
+	var initial_foul_timer := match_scene.foul_timer
+	var initial_random_state := match_scene.random.state
+	match_scene.random.randf()
+	match_scene._start_match()
+	_expect_equal(
+		is_equal_approx(match_scene.foul_timer, initial_foul_timer)
+			and match_scene.random.state == initial_random_state,
+		true,
+		"replay resets the random generator to the configured match seed"
+	)
+	_expect_equal(
+		"graine 731942" in match_scene.hud.venue_label.text,
+		true,
+		"active match exposes its reproducible seed"
+	)
+	match_scene.free()
+
+
+func _test_debug_tools_force_core_events() -> void:
+	var match_scene := preload(
+		"res://gameplay/perspective/referee_perspective_match.tscn"
+	).instantiate() as RefereePerspectiveMatch
+	match_scene.configure_match(
+		"group_stage",
+		StadiumCatalog.DEFAULT_ID,
+		9125,
+		true
+	)
+	root.add_child(match_scene)
+	match_scene._on_whistle_requested()
+	_expect_equal(
+		match_scene.force_debug_event("foul")
+			and match_scene.current_truth.get("offence_id", "")
+			== "reckless_tackle",
+		true,
+		"debug tools force a complete foul event"
+	)
+	_expect_equal(
+		match_scene.force_debug_event("offside")
+			and match_scene.current_truth.get("offence_id", "")
+			== "offside_interfering_play",
+		true,
+		"debug tools force an offside event"
+	)
+	_expect_equal(
+		match_scene.force_debug_event("no_offence")
+			and match_scene.current_truth.get("offence_id", "")
+			== "no_offence",
+		true,
+		"debug tools force a no-offence event"
+	)
+	_expect_equal(
+		match_scene.force_debug_event("goal")
+			and match_scene.current_truth.get("offence_id", "")
+			== "goal_scored"
+			and bool(match_scene.current_truth.get("stops_play", false)),
+		true,
+		"debug tools force a goal awaiting referee confirmation"
+	)
+	match_scene.free()
 
 
 func _test_team_ai_builds_controlled_possession() -> void:
@@ -346,6 +593,183 @@ func _test_team_ai_builds_controlled_possession() -> void:
 	match_scene.free()
 
 
+func _test_goal_waits_for_referee_confirmation() -> void:
+	var match_scene := preload(
+		"res://gameplay/perspective/referee_perspective_match.tscn"
+	).instantiate() as RefereePerspectiveMatch
+	root.add_child(match_scene)
+	match_scene._on_whistle_requested()
+	var shooter := match_scene.blue_team[9]
+	match_scene.ball_in_flight = false
+	match_scene._set_possession(0, shooter)
+	match_scene.pending_action = "shot"
+	match_scene.pending_shooter = shooter
+	match_scene.pending_shot_scores = true
+	match_scene._resolve_ball_flight()
+	_expect_equal(
+		match_scene.blue_score == 0
+			and match_scene.current_truth.get("offence_id", "") == "goal_scored"
+			and bool(match_scene.current_truth.get("stops_play", false)),
+		true,
+		"goal crossing waits for the referee before changing the score"
+	)
+	match_scene._on_whistle_requested()
+	match_scene.officiating_panel._select_action("goal")
+	match_scene.officiating_panel._submit()
+	_expect_equal(
+		match_scene.blue_score,
+		1,
+		"confirmed goal is added to the score"
+	)
+	_expect_equal(
+		match_scene.phase == RefereePerspectiveMatch.Phase.PLAYING
+			and match_scene.possession_team_id == 1
+			and match_scene.pending_action == "pass",
+		true,
+		"confirmed goal restarts with the conceding team"
+	)
+	match_scene.free()
+
+
+func _test_offside_before_goal_keeps_priority() -> void:
+	var match_scene := preload(
+		"res://gameplay/perspective/referee_perspective_match.tscn"
+	).instantiate() as RefereePerspectiveMatch
+	root.add_child(match_scene)
+	match_scene._on_whistle_requested()
+	var receiver := match_scene.blue_team[8]
+	match_scene.ball_in_flight = false
+	match_scene._set_possession(0, receiver)
+	match_scene.current_truth = {
+		"category_id": "offside",
+		"offence_id": "offside_interfering_play",
+		"restart_id": "indirect_free_kick",
+		"discipline_id": "none",
+		"offender": receiver,
+		"affected": null,
+		"position": receiver.global_position,
+		"age": 0.5,
+		"response_window": 6.0,
+		"var_alerted": false,
+	}
+	match_scene.pending_action = "shot"
+	match_scene.pending_shooter = receiver
+	match_scene.pending_shot_scores = true
+	match_scene._resolve_ball_flight()
+	_expect_equal(
+		match_scene.current_truth.get("offence_id", "")
+			== "offside_interfering_play"
+			and bool(match_scene.current_truth.get("stops_play", false))
+			and match_scene.blue_score == 0,
+		true,
+		"earlier offside remains the expected decision when the shot enters"
+	)
+	match_scene._on_whistle_requested()
+	match_scene.officiating_panel._select_action("offside")
+	match_scene.officiating_panel.set_look_target(receiver)
+	match_scene.officiating_panel._lock_target()
+	match_scene.officiating_panel._submit()
+	_expect_equal(
+		match_scene.possession_team_id == 1
+			and match_scene.blue_score == 0,
+		true,
+		"offside decision cancels the goal and restarts for the defence"
+	)
+	match_scene.free()
+
+
+func _test_false_whistle_accepts_no_offence() -> void:
+	var match_scene := preload(
+		"res://gameplay/perspective/referee_perspective_match.tscn"
+	).instantiate() as RefereePerspectiveMatch
+	root.add_child(match_scene)
+	match_scene._on_whistle_requested()
+	match_scene.current_truth.clear()
+	match_scene._on_whistle_requested()
+	match_scene.officiating_panel._select_action("no_offence")
+	match_scene.officiating_panel._submit()
+	var record: Dictionary = match_scene.decisions.back()
+	_expect_equal(
+		match_scene.phase,
+		RefereePerspectiveMatch.Phase.PLAYING,
+		"no-offence decision resumes play after an unnecessary whistle"
+	)
+	_expect_equal(
+		float(record["quality"]),
+		1.0,
+		"no-offence decision can exactly match an empty stoppage"
+	)
+	match_scene.free()
+
+
+func _test_perspective_decision_uses_observation_quality() -> void:
+	var match_scene := preload(
+		"res://gameplay/perspective/referee_perspective_match.tscn"
+	).instantiate() as RefereePerspectiveMatch
+	root.add_child(match_scene)
+	var decision := {
+		"category_id": "match_control",
+		"offence_id": "no_offence",
+		"restart_id": "dropped_ball",
+		"discipline_id": "none",
+		"offender_team_id": -1,
+		"offender_instance_id": 0,
+		"awarded_team_id": -1,
+	}
+	var clear_expected := decision.duplicate()
+	clear_expected["age"] = 0.8
+	clear_expected["observation_at_event"] = {
+		"quality": 1.0,
+		"response_window": 7.0,
+	}
+	var poor_expected := decision.duplicate()
+	poor_expected["age"] = 2.4
+	poor_expected["observation_at_event"] = {
+		"quality": 0.2,
+		"response_window": 3.0,
+	}
+	var clear_record := match_scene._evaluate_decision(
+		decision,
+		clear_expected
+	)
+	var poor_record := match_scene._evaluate_decision(
+		decision,
+		poor_expected
+	)
+	_expect_equal(
+		int(clear_record["total_score"]) > int(poor_record["total_score"]),
+		true,
+		"clear and prompt observation produces a better match decision score"
+	)
+	_expect_equal(
+		int(clear_record["positioning_score"]) == 25
+			and int(poor_record["positioning_score"]) == 5,
+		true,
+		"perspective quality contributes twenty-five positioning points"
+	)
+	match_scene.phase = RefereePerspectiveMatch.Phase.PLAYING
+	match_scene.current_truth = {
+		"age": 0.0,
+		"var_alerted": false,
+		"var_reviewable": false,
+		"response_window": 3.0,
+		"offence_id": "reckless_tackle",
+		"offender": null,
+		"affected": null,
+		"observation_at_event": {
+			"label": "Contact mal vu",
+		},
+	}
+	match_scene._update_ground_truth(3.1)
+	_expect_equal(
+		match_scene.current_truth.is_empty()
+			and match_scene.missed_events == 1,
+		true,
+		"poor observation window expires and counts an untreated event"
+	)
+	match_scene.free()
+
+
 func _test_detailed_foul_restart_flow() -> void:
 	var match_scene := preload(
 		"res://gameplay/perspective/referee_perspective_match.tscn"
@@ -423,7 +847,7 @@ func _test_detailed_foul_restart_flow() -> void:
 	)
 
 	var victim := match_scene.blue_team[8]
-	var offender := match_scene.red_team[5]
+	var offender := match_scene.red_team[6]
 	match_scene._set_possession(0, victim)
 	match_scene.current_truth = {
 		"category_id": "fouls",
@@ -439,9 +863,18 @@ func _test_detailed_foul_restart_flow() -> void:
 	_expect_equal(
 		match_scene.phase == RefereePerspectiveMatch.Phase.PLAYING
 			and match_scene.current_truth.is_empty()
-			and match_scene.possession_team_id == 0,
+			and match_scene.possession_team_id == 0
+			and match_scene.pending_disciplines.size() == 1
+			and offender.caution_count == 0,
 		true,
-		"advantage keeps play and possession alive without a whistle"
+		"advantage keeps play alive and defers the expected card"
+	)
+	match_scene._on_whistle_requested()
+	_expect_equal(
+		offender.caution_count == 1
+			and match_scene.pending_disciplines.is_empty(),
+		true,
+		"deferred yellow card is shown at the next stoppage"
 	)
 	match_scene.free()
 
@@ -879,6 +1312,11 @@ func _test_perspective_observation_penalizes_angle_and_occlusion() -> void:
 		clear["quality"] > occluded["quality"],
 		true,
 		"player occlusion affects evidence"
+	)
+	_expect_equal(
+		float(clear["response_window"]) > float(occluded["response_window"]),
+		true,
+		"clear observation grants a longer response window"
 	)
 
 

@@ -42,5 +42,5 @@ jobs:
       - name: Run the main scene
         run: godot --headless --path . --quit-after 600
 
-      - name: Exercise the 11v11 simulation
-        run: godot --headless --path . res://gameplay/match/match.tscn --quit-after 1800
+      - name: Exercise the active referee-perspective match
+        run: godot --headless --path . res://gameplay/perspective/referee_perspective_match.tscn --quit-after 600

@@ -3,23 +3,28 @@ class_name ResultsPanel
 
 signal replay_requested
 signal main_menu_requested
+signal continue_requested
 
+@onready var eyebrow_label: Label = %EyebrowLabel
 @onready var grade_label: Label = %GradeLabel
 @onready var total_label: Label = %TotalLabel
 @onready var breakdown_label: Label = %BreakdownLabel
 @onready var feedback_label: Label = %FeedbackLabel
 @onready var explanation_label: Label = %ExplanationLabel
 @onready var replay_button: Button = %ReplayButton
+@onready var continue_button: Button = %ContinueButton
 @onready var main_menu_button: Button = %MainMenuButton
 
 
 func _ready() -> void:
 	replay_button.pressed.connect(func() -> void: replay_requested.emit())
+	continue_button.pressed.connect(func() -> void: continue_requested.emit())
 	main_menu_button.pressed.connect(func() -> void: main_menu_requested.emit())
 	visible = false
 
 
 func show_result(result: Dictionary) -> void:
+	_configure_context_and_actions(result)
 	if result.get("tension_mode", false):
 		_show_tension_result(result)
 		return
@@ -71,6 +76,20 @@ func _show_tension_result(result: Dictionary) -> void:
 	feedback_label.text = "\n".join(formatted_feedback)
 	explanation_label.text = result["explanation"]
 	visible = true
+
+
+func _configure_context_and_actions(result: Dictionary) -> void:
+	var result_context := str(result.get("result_context", "")).strip_edges()
+	eyebrow_label.text = (
+		result_context
+		if not result_context.is_empty()
+		else "FIN DU MATCH"
+	)
+	continue_button.visible = bool(result.get("can_continue", false))
+	continue_button.text = str(
+		result.get("continue_label", "Match suivant")
+	)
+	replay_button.text = str(result.get("replay_label", "Rejouer"))
 
 
 func hide_panel() -> void:

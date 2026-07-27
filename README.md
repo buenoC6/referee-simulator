@@ -37,20 +37,37 @@ Le but de ce dépôt est double :
   le choix de la décision ;
 - choix de l'enjeu avant le match : amical, poules, qualificatif, élimination
   directe, finale ou derby ;
+- trois modes solo accessibles directement depuis le menu : partie rapide,
+  tournoi mondial fictif et carrière internationale ;
+- tournoi et carrière composés de cinq affectations successives, avec enjeu
+  croissant, rapport intermédiaire et bouton vers le match suivant ;
+- menu pause avec `Échap` : reprendre, recommencer l'affectation avec la même
+  graine ou revenir au menu principal ;
+- graine de match visible et configurable depuis le menu : rejouer avec la même
+  graine réinitialise les choix aléatoires dans le même ordre ;
+- outils de test optionnels depuis le menu : `F1` force une faute, `F2` un
+  hors-jeu, `F3` un but potentiel et `F4` une action sans infraction ;
+- ambiance sonore procédurale sans asset externe : rumeur stéréo du stade dont
+  le niveau suit la tension, réactions distinctes aux buts et aux décisions,
+  cris de protestation, contacts, frappes de balle et séquences de sifflet ;
+- touche `M` pour couper ou rétablir immédiatement toute l'ambiance du match ;
 - tension indépendante des deux équipes : les décisions contestables et les
   actions ignorées font monter leur colère, tandis qu'une intervention juste
   peut calmer l'équipe lésée ;
 - difficulté dynamique : rythme, pertes de balle, fautes, contestataires autour
   de l'arbitre et risque d'interruption augmentent avec la tension ;
-- qualité de preuve calculée selon la distance, l'angle de regard et l'occultation par les joueurs ;
-- première décision réduite à `Faute` ou `Hors-jeu`, puis détail progressif de
-  la reprise, de la sanction et de l'équipe bénéficiaire ;
+- qualité de preuve calculée selon la distance, l'angle de regard et
+  l'occultation : elle détermine la fenêtre de réaction et les points de
+  placement du rapport ;
+- décisions principales `Faute`, `Hors-jeu`, `But` et `Aucune infraction`,
+  puis détail progressif de la reprise, de la sanction et de l'équipe
+  bénéficiaire ;
 - après le sifflet, le match reste figé mais l'arbitre peut marcher autour de
   l'action, viser un joueur, l'identifier avec `E`, puis confirmer ;
 - lieu de reprise mémorisé automatiquement à la position du ballon au sifflet,
   matérialisé sur la pelouse et utilisé pour replacer le coup franc ;
 - avantage signalé avec `V` pendant que le jeu continue, avant tout coup de
-  sifflet, conformément à la règle ;
+  sifflet, avec sanction mémorisée jusqu'au prochain arrêt ;
 - demande de check VAR avec `3` pendant un arrêt ;
 - annonces VAR spontanées sur les actions révisables, avec équipe, numéro et
   marqueur violet conservé au-dessus du joueur concerné ;
@@ -95,6 +112,7 @@ godot --headless --path . --script res://tests/smoke_test.gd
 
 ```text
 gameplay/
+├── modes/         # Catalogue des modes et calendriers d'affectations
 ├── perspective/   # Match 3D, caméra arbitre, assistants et catalogue de décisions
 ├── incidents/     # Données réglementaires historiques réutilisées
 ├── evaluation/    # Calculs purs du prototype 2D conservé
@@ -109,16 +127,22 @@ Les dossiers suivent les recommandations Godot : fichiers et dossiers en `snake_
 
 ## Parcours de lecture conseillé
 
-1. [`core/app.tscn`](core/app.tscn) — point d'entrée et changement d'écran ;
-2. [`gameplay/perspective/referee_perspective_match.gd`](gameplay/perspective/referee_perspective_match.gd) — match continu et orchestration ;
-3. [`gameplay/perspective/stadium_catalog.gd`](gameplay/perspective/stadium_catalog.gd) — identités des clubs, stades et lumières ;
-4. [`gameplay/perspective/referee_controller_3d.gd`](gameplay/perspective/referee_controller_3d.gd) — caméra et déplacement de l'arbitre ;
-5. [`gameplay/perspective/perspective_observation_model.gd`](gameplay/perspective/perspective_observation_model.gd) — distance, angle et occultation ;
-6. [`gameplay/perspective/match_intensity_model.gd`](gameplay/perspective/match_intensity_model.gd) — enjeu, tension et difficulté ;
-7. [`gameplay/perspective/officiating_catalog.gd`](gameplay/perspective/officiating_catalog.gd) — catalogue extensible ;
-8. [`gameplay/perspective/officiating_panel.gd`](gameplay/perspective/officiating_panel.gd) — flux de décision ;
-9. [`gameplay/perspective/assistant_referee_3d.gd`](gameplay/perspective/assistant_referee_3d.gd) — assistants et drapeaux ;
-10. [`docs/architecture.md`](docs/architecture.md) — responsabilités et limites.
+1. [`core/app.tscn`](core/app.tscn) — point d'entrée, session et changement d'écran ;
+2. [`gameplay/modes/game_mode_catalog.gd`](gameplay/modes/game_mode_catalog.gd) — données des trois modes et de leurs affectations ;
+3. [`ui/main_menu/main_menu.gd`](ui/main_menu/main_menu.gd) — choix du mode et préparation ;
+4. [`gameplay/perspective/referee_perspective_match.gd`](gameplay/perspective/referee_perspective_match.gd) — match continu et orchestration ;
+5. [`ui/pause_menu.gd`](ui/pause_menu.gd) — pause globale et intentions de navigation ;
+6. [`gameplay/perspective/stadium_catalog.gd`](gameplay/perspective/stadium_catalog.gd) — identités des clubs, stades et lumières ;
+7. [`gameplay/perspective/referee_controller_3d.gd`](gameplay/perspective/referee_controller_3d.gd) — caméra et déplacement de l'arbitre ;
+8. [`gameplay/perspective/football_team_ai.gd`](gameplay/perspective/football_team_ai.gd) — pression, couloirs et options de passe ;
+9. [`gameplay/perspective/perspective_observation_model.gd`](gameplay/perspective/perspective_observation_model.gd) — distance, angle et occultation ;
+10. [`gameplay/perspective/perspective_decision_scoring.gd`](gameplay/perspective/perspective_decision_scoring.gd) — score technique, placement et réaction ;
+11. [`gameplay/perspective/match_intensity_model.gd`](gameplay/perspective/match_intensity_model.gd) — enjeu, tension et difficulté ;
+12. [`gameplay/perspective/match_audio_director.gd`](gameplay/perspective/match_audio_director.gd) — ambiance et bruitages procéduraux ;
+13. [`gameplay/perspective/officiating_catalog.gd`](gameplay/perspective/officiating_catalog.gd) — catalogue extensible ;
+14. [`gameplay/perspective/officiating_panel.gd`](gameplay/perspective/officiating_panel.gd) — flux de décision ;
+15. [`gameplay/perspective/assistant_referee_3d.gd`](gameplay/perspective/assistant_referee_3d.gd) — assistants et drapeaux ;
+16. [`docs/architecture.md`](docs/architecture.md) — responsabilités et limites.
 
 ## Philosophie du prototype
 
@@ -140,6 +164,10 @@ suivre l'action
 ## Qualité
 
 Le workflow GitHub Actions importe le projet et exécute le test headless à chaque push et pull request. Le projet ne dépend d'aucun plugin communautaire ni asset externe.
+
+Pour reproduire un problème, note la graine affichée dans le menu ou le HUD,
+relance une partie avec la même valeur et active les outils de test si tu veux
+forcer une famille d'événement précise.
 
 ## Documentation produit
 

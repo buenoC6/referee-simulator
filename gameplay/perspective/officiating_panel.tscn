@@ -104,6 +104,38 @@ theme_override_font_sizes/font_size = 15
 text = "3   VAR"
 horizontal_alignment = 1
 
+[node name="OutcomeRow" type="HBoxContainer" parent="DecisionCard/Column"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GoalChoice" type="PanelContainer" parent="DecisionCard/Column/OutcomeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_default_cursor_shape = 2
+
+[node name="GoalChoiceLabel" type="Label" parent="DecisionCard/Column/OutcomeRow/GoalChoice"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "G   But accordé"
+horizontal_alignment = 1
+
+[node name="NoOffenceChoice" type="PanelContainer" parent="DecisionCard/Column/OutcomeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_default_cursor_shape = 2
+
+[node name="NoOffenceChoiceLabel" type="Label" parent="DecisionCard/Column/OutcomeRow/NoOffenceChoice"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "N   Aucune infraction"
+horizontal_alignment = 1
+
 [node name="FoulDetails" type="VBoxContainer" parent="DecisionCard/Column"]
 unique_name_in_owner = true
 visible = false

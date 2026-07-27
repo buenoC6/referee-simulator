@@ -71,18 +71,18 @@ La situation actuelle représente une intervention téméraire :
 - équipe bénéficiaire choisie, avec présélection de l'adversaire du fautif ;
 - lieu du coup franc mémorisé au sifflet et matérialisé au sol ;
 - avantage signalable avant le sifflet sans arrêter le jeu ;
+- sanction disciplinaire après avantage mémorisée et montrée au prochain arrêt ;
 - carton choisi attaché au joueur concerné ;
 - rouge direct ou second jaune entraînant l'exclusion.
 
 ## Prochaines règles à introduire
 
-1. mémorisation d'un carton après avantage pour le montrer au prochain arrêt ;
-2. plusieurs types de fautes avec imprudence, témérité et force excessive ;
-3. main, fautes indirectes et comportement antisportif ;
-4. gestes complets de touche et de corner, avec infractions de procédure ;
-5. détections de but et de hors-jeu plus proches de la géométrie réelle ;
-6. temps additionnel, blessures et procédures de remplacement ;
-7. temps additionnel calculé séparément pour chaque période.
+1. plusieurs types de fautes avec imprudence, témérité et force excessive ;
+2. main, fautes indirectes et comportement antisportif ;
+3. gestes complets de touche et de corner, avec infractions de procédure ;
+4. détections de but et de hors-jeu plus proches de la géométrie réelle ;
+5. temps additionnel, blessures et procédures de remplacement ;
+6. temps additionnel calculé séparément pour chaque période.
 
 Chaque ajout devrait commencer par des cas de test dans `tests/smoke_test.gd`,
 puis être branché à la simulation. Cette approche garde la règle indépendante

@@ -17,6 +17,20 @@ const SIMPLE_ACTIONS: Array[Dictionary] = [
 		"offence_id": "offside_interfering_play",
 		"restart_id": "indirect_free_kick",
 	},
+	{
+		"id": "goal",
+		"category_id": "restarts",
+		"label": "BUT ACCORDÉ",
+		"offence_id": "goal_scored",
+		"restart_id": "kick_off",
+	},
+	{
+		"id": "no_offence",
+		"category_id": "match_control",
+		"label": "AUCUNE INFRACTION",
+		"offence_id": "no_offence",
+		"restart_id": "dropped_ball",
+	},
 ]
 
 @onready var context_label: Label = %ContextLabel
@@ -29,9 +43,13 @@ const SIMPLE_ACTIONS: Array[Dictionary] = [
 @onready var hint_label: Label = %HintLabel
 @onready var foul_choice: PanelContainer = %FoulChoice
 @onready var offside_choice: PanelContainer = %OffsideChoice
+@onready var goal_choice: PanelContainer = %GoalChoice
+@onready var no_offence_choice: PanelContainer = %NoOffenceChoice
 @onready var var_choice: PanelContainer = %VarChoice
 @onready var foul_choice_label: Label = %FoulChoiceLabel
 @onready var offside_choice_label: Label = %OffsideChoiceLabel
+@onready var goal_choice_label: Label = %GoalChoiceLabel
+@onready var no_offence_choice_label: Label = %NoOffenceChoiceLabel
 @onready var var_choice_label: Label = %VarChoiceLabel
 @onready var foul_details: VBoxContainer = %FoulDetails
 @onready var free_kick_choice: PanelContainer = %FreeKickChoice
@@ -55,6 +73,7 @@ const SIMPLE_ACTIONS: Array[Dictionary] = [
 var candidate_players: Array[PerspectivePlayer3D] = []
 var looked_at_player: PerspectivePlayer3D
 var identified_player: PerspectivePlayer3D
+var suggested_offender: PerspectivePlayer3D
 var suggested_affected: PerspectivePlayer3D
 var selected_action_id: String = ""
 var selected_restart_id: String = "direct_free_kick"
@@ -67,6 +86,8 @@ func _ready() -> void:
 	visible = false
 	foul_choice.gui_input.connect(_on_choice_input.bind("fouls"))
 	offside_choice.gui_input.connect(_on_choice_input.bind("offside"))
+	goal_choice.gui_input.connect(_on_choice_input.bind("goal"))
+	no_offence_choice.gui_input.connect(_on_choice_input.bind("no_offence"))
 	var_choice.gui_input.connect(_on_choice_input.bind("var"))
 	free_kick_choice.gui_input.connect(
 		_on_detail_choice_input.bind("restart", "direct_free_kick")
@@ -97,10 +118,11 @@ func _ready() -> void:
 func show_for(
 	context: Dictionary,
 	candidates: Array[PerspectivePlayer3D],
-	_suggested_offender: PerspectivePlayer3D = null,
+	next_suggested_offender: PerspectivePlayer3D = null,
 	next_suggested_affected: PerspectivePlayer3D = null
 ) -> void:
 	candidate_players = candidates
+	suggested_offender = next_suggested_offender
 	suggested_affected = next_suggested_affected
 	looked_at_player = null
 	identified_player = null
@@ -122,7 +144,7 @@ func show_for(
 		"evidence",
 		"Approche-toi des joueurs pour les identifier."
 	)
-	action_label.text = "FAUTE HORS-JEU VAR"
+	action_label.text = "FAUTE HORS-JEU BUT AUCUNE INFRACTION VAR"
 	target_label.text = "Aucun joueur dans le viseur"
 	identified_label.text = ""
 	var_label.text = ""
@@ -138,6 +160,7 @@ func hide_panel() -> void:
 	visible = false
 	looked_at_player = null
 	identified_player = null
+	suggested_offender = null
 
 
 func set_look_target(player: PerspectivePlayer3D) -> void:
@@ -170,6 +193,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_select_action("offside")
 	elif _event_matches(key_event, KEY_3, KEY_KP_3):
 		_request_var_review()
+	elif _event_matches(key_event, KEY_G):
+		_select_action("goal")
+	elif _event_matches(key_event, KEY_N):
+		_select_action("no_offence")
 	elif _event_matches(key_event, KEY_4, KEY_KP_4):
 		_select_restart("direct_free_kick")
 	elif _event_matches(key_event, KEY_5, KEY_KP_5):
@@ -264,19 +291,37 @@ func _request_var_review() -> void:
 func _select_action(action_id: String) -> void:
 	selected_action_id = action_id
 	var action := _action(action_id)
-	action_label.text = "FAUTE HORS-JEU VAR · %s" % action["label"]
-	if action_id == "fouls":
-		selected_restart_id = "direct_free_kick"
-		hint_label.text = (
-			"Choisis la reprise et la sanction, puis identifie le fautif."
-		)
-	else:
-		selected_restart_id = "indirect_free_kick"
-		selected_discipline_id = "none"
-		award_team_manually_selected = false
-		if identified_player != null:
-			awarded_team_id = 1 - identified_player.team_id
-		hint_label.text = "Identifie le joueur hors-jeu, puis confirme."
+	action_label.text = "DÉCISION · %s" % action["label"]
+	match action_id:
+		"fouls":
+			selected_restart_id = "direct_free_kick"
+			hint_label.text = (
+				"Choisis la reprise et la sanction, puis identifie le fautif."
+			)
+		"offside":
+			selected_restart_id = "indirect_free_kick"
+			selected_discipline_id = "none"
+			award_team_manually_selected = false
+			if identified_player != null:
+				awarded_team_id = 1 - identified_player.team_id
+			hint_label.text = "Identifie le joueur hors-jeu, puis confirme."
+		"goal":
+			selected_restart_id = "kick_off"
+			selected_discipline_id = "none"
+			award_team_manually_selected = false
+			if suggested_offender != null:
+				awarded_team_id = 1 - suggested_offender.team_id
+			hint_label.text = (
+				"Le but sera ajouté au score après confirmation."
+			)
+		"no_offence":
+			selected_restart_id = "dropped_ball"
+			selected_discipline_id = "none"
+			awarded_team_id = -1
+			award_team_manually_selected = false
+			hint_label.text = (
+				"Aucune infraction : confirme pour reprendre par balle à terre."
+			)
 	_refresh_choices()
 	_refresh_foul_details()
 
@@ -315,11 +360,19 @@ func _toggle_awarded_team() -> void:
 
 
 func _lock_target() -> void:
+	if selected_action_id == "no_offence":
+		hint_label.text = (
+			"Aucun joueur ne doit être identifié pour cette décision."
+		)
+		return
 	if looked_at_player == null or not looked_at_player.active:
 		hint_label.text = "Aucun joueur dans le viseur. Approche-toi et regarde-le."
 		return
 	identified_player = looked_at_player
-	if not award_team_manually_selected:
+	if (
+		not award_team_manually_selected
+		and selected_action_id in ["fouls", "offside", "goal"]
+	):
 		awarded_team_id = 1 - identified_player.team_id
 	identified_label.text = "Retenu · %s" % _player_label(
 		identified_player
@@ -334,22 +387,36 @@ func _lock_target() -> void:
 
 func _submit() -> void:
 	if selected_action_id.is_empty():
-		hint_label.text = "Choisis d’abord : 1 pour Faute ou 2 pour Hors-jeu."
+		hint_label.text = (
+			"Choisis une décision : Faute, Hors-jeu, But ou Aucune infraction."
+		)
 		return
-	if identified_player == null or not identified_player.active:
+	if (
+		_requires_identified_player(selected_action_id)
+		and (identified_player == null or not identified_player.active)
+	):
 		hint_label.text = "Identifie le joueur concerné avec E avant de confirmer."
 		return
 	var action := _action(selected_action_id)
-	if awarded_team_id < 0:
-		awarded_team_id = 1 - identified_player.team_id
-	var affected := suggested_affected
-	if affected == identified_player:
+	var offender := identified_player
+	if selected_action_id == "goal" and offender == null:
+		offender = suggested_offender
+	elif selected_action_id == "no_offence":
+		offender = null
+	if awarded_team_id < 0 and offender != null:
+		awarded_team_id = 1 - offender.team_id
+	var affected := (
+		suggested_affected
+		if selected_action_id == "fouls"
+		else null
+	)
+	if affected == offender:
 		affected = null
 	decision_submitted.emit({
-		"category_id": action["id"],
+		"category_id": action.get("category_id", action["id"]),
 		"offence_id": action["offence_id"],
 		"offence_label": action["label"],
-		"offender": identified_player,
+		"offender": offender,
 		"affected": affected,
 		"restart_id": (
 			selected_restart_id
@@ -366,6 +433,10 @@ func _submit() -> void:
 		"simplified": true,
 		"discipline_explicit": selected_action_id == "fouls",
 	})
+
+
+func _requires_identified_player(action_id: String) -> bool:
+	return action_id in ["fouls", "offside"]
 
 
 func _action(action_id: String) -> Dictionary:
@@ -395,13 +466,23 @@ func _refresh_choices(var_pending: bool = false) -> void:
 		offside_choice_label,
 		selected_action_id == "offside"
 	)
+	_style_choice(
+		goal_choice,
+		goal_choice_label,
+		selected_action_id == "goal"
+	)
+	_style_choice(
+		no_offence_choice,
+		no_offence_choice_label,
+		selected_action_id == "no_offence"
+	)
 	_style_choice(var_choice, var_choice_label, var_pending)
 
 
 func _refresh_foul_details() -> void:
 	var expanded := selected_action_id == "fouls"
 	foul_details.visible = expanded
-	decision_card.offset_top = -370.0 if expanded else -232.0
+	decision_card.offset_top = -414.0 if expanded else -284.0
 	if not expanded:
 		return
 	_style_choice(

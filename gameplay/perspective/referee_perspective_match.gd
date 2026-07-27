@@ -2,6 +2,7 @@ extends Node3D
 class_name RefereePerspectiveMatch
 
 signal main_menu_requested
+signal continue_mode_requested
 
 enum Phase {
 	PRE_MATCH,
@@ -20,11 +21,17 @@ const ASSISTANT_SCRIPT := preload(
 const STADIUM_CATALOG := preload(
 	"res://gameplay/perspective/stadium_catalog.gd"
 )
+const GAME_MODE_CATALOG := preload(
+	"res://gameplay/modes/game_mode_catalog.gd"
+)
 const FOOTBALL_LAWS := preload(
 	"res://gameplay/perspective/football_laws_3d.gd"
 )
 const TEAM_AI := preload(
 	"res://gameplay/perspective/football_team_ai.gd"
+)
+const DECISION_SCORING := preload(
+	"res://gameplay/perspective/perspective_decision_scoring.gd"
 )
 const MATCH_REAL_DURATION := 180.0
 const HALF_REAL_DURATION := MATCH_REAL_DURATION * 0.5
@@ -39,6 +46,8 @@ const BALL_RADIUS := 0.22
 @onready var hud: PerspectiveHud = $PerspectiveHud
 @onready var officiating_panel: OfficiatingPanel = $OfficiatingPanel
 @onready var results_panel: ResultsPanel = $ResultsPanel
+@onready var pause_menu: PauseMenu = $PauseMenu
+@onready var audio_director: MatchAudioDirector = $AudioDirector
 
 var phase := Phase.PRE_MATCH
 var phase_elapsed: float = 0.0
@@ -76,6 +85,7 @@ var event_feedback_timer: float = 0.0
 var current_truth: Dictionary = {}
 var whistle_observation: Dictionary = {}
 var whistle_position := Vector3.ZERO
+var pending_disciplines: Array[Dictionary] = []
 var decisions: Array[Dictionary] = []
 var missed_events: int = 0
 var ball_marker: Label3D
@@ -96,21 +106,48 @@ var unmanageable_timer: float = 0.0
 var match_end_reason: String = ""
 var inspection_target: PerspectivePlayer3D
 var var_referred_player: PerspectivePlayer3D
+var match_seed: int = 1
+var debug_tools_active: bool = false
+var game_mode_id: String = GAME_MODE_CATALOG.QUICK_MATCH_ID
+var game_mode_stage_index: int = 0
+var game_mode_profile: Dictionary = GAME_MODE_CATALOG.profile(game_mode_id)
+var game_mode_stage: Dictionary = GAME_MODE_CATALOG.stage(game_mode_id, 0)
+var pause_open: bool = false
 var random := RandomNumberGenerator.new()
 
 
 func configure_match(
 	importance_id: String,
-	selected_stadium_id: String = STADIUM_CATALOG.DEFAULT_ID
+	selected_stadium_id: String = STADIUM_CATALOG.DEFAULT_ID,
+	selected_match_seed: int = 1,
+	enable_debug_tools: bool = false,
+	selected_game_mode_id: String = GAME_MODE_CATALOG.QUICK_MATCH_ID,
+	selected_game_mode_stage_index: int = 0
 ) -> void:
+	game_mode_id = str(
+		GAME_MODE_CATALOG.profile(selected_game_mode_id)["id"]
+	)
+	game_mode_stage_index = clampi(
+		selected_game_mode_stage_index,
+		0,
+		GAME_MODE_CATALOG.stage_count(game_mode_id) - 1
+	)
+	game_mode_profile = GAME_MODE_CATALOG.profile(game_mode_id)
+	game_mode_stage = GAME_MODE_CATALOG.stage(
+		game_mode_id,
+		game_mode_stage_index
+	)
+	if game_mode_id != GAME_MODE_CATALOG.QUICK_MATCH_ID:
+		importance_id = str(game_mode_stage["importance_id"])
 	match_importance_id = importance_id
 	match_profile = MatchIntensityModel.profile(importance_id)
 	stadium_id = selected_stadium_id
 	stadium_profile = STADIUM_CATALOG.profile(stadium_id)
+	match_seed = maxi(selected_match_seed, 1)
+	debug_tools_active = enable_debug_tools
 
 
 func _ready() -> void:
-	random.randomize()
 	_build_environment()
 	_build_pitch()
 	_build_teams()
@@ -131,6 +168,12 @@ func _ready() -> void:
 	officiating_panel.var_review_requested.connect(_on_var_review_requested)
 	results_panel.replay_requested.connect(_start_match)
 	results_panel.main_menu_requested.connect(_request_main_menu)
+	results_panel.continue_requested.connect(
+		func() -> void: continue_mode_requested.emit()
+	)
+	pause_menu.resume_requested.connect(_resume_from_pause)
+	pause_menu.restart_requested.connect(_restart_from_pause)
+	pause_menu.main_menu_requested.connect(_return_to_menu_from_pause)
 	_start_match()
 
 
@@ -165,7 +208,44 @@ func _process(delta: float) -> void:
 			_update_inspection_target()
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") and phase != Phase.RESULTS:
+		_open_pause_menu()
+		get_viewport().set_input_as_handled()
+		return
+	var key_event := event as InputEventKey
+	if key_event == null or not key_event.pressed or key_event.echo:
+		return
+	if key_event.keycode == KEY_M:
+		var sound_muted := audio_director.toggle_muted()
+		hud.show_incident(
+			"SON COUPÉ" if sound_muted else "SON RÉTABLI",
+			"Appuie sur M pour changer à nouveau."
+		)
+		event_feedback_timer = 1.8
+		get_viewport().set_input_as_handled()
+		return
+	if not debug_tools_active or phase != Phase.PLAYING:
+		return
+	var event_id := ""
+	match key_event.keycode:
+		KEY_F1:
+			event_id = "foul"
+		KEY_F2:
+			event_id = "offside"
+		KEY_F3:
+			event_id = "goal"
+		KEY_F4:
+			event_id = "no_offence"
+	if event_id.is_empty() or not force_debug_event(event_id):
+		return
+	get_viewport().set_input_as_handled()
+
+
 func _start_match() -> void:
+	_leave_pause_state()
+	random.seed = match_seed
+	audio_director.reset_for_match(match_seed)
 	phase = Phase.PRE_MATCH
 	phase_elapsed = 0.0
 	match_elapsed = 0.0
@@ -176,6 +256,7 @@ func _start_match() -> void:
 	decisions.clear()
 	current_truth.clear()
 	whistle_observation.clear()
+	pending_disciplines.clear()
 	missed_events = 0
 	match_profile = MatchIntensityModel.profile(match_importance_id)
 	blue_tension = float(match_profile["baseline_tension"])
@@ -225,7 +306,13 @@ func _start_match() -> void:
 	_hide_restart_marker()
 	hud.set_venue(
 		stadium_profile["stadium_name"],
-		stadium_profile["city"]
+		stadium_profile["city"],
+		match_seed,
+		debug_tools_active,
+		GAME_MODE_CATALOG.context_label(
+			game_mode_id,
+			game_mode_stage_index
+		)
 	)
 	hud.set_team_identity(
 		stadium_profile["short_name"],
@@ -235,11 +322,18 @@ func _start_match() -> void:
 	)
 	hud.set_phase("PRÊT POUR LE COUP D’ENVOI")
 	hud.set_objective(
-		"%s au %s : place-toi, puis siffle le début du match."
-		% [match_profile["label"], stadium_profile["stadium_name"]]
+		"%s · %s au %s : place-toi, puis siffle le début du match."
+		% [
+			game_mode_stage["label"],
+			match_profile["label"],
+			stadium_profile["stadium_name"],
+		]
 	)
 	hud.set_controls(
-		"ZQSD : se placer · Souris : regarder · Espace : donner le coup d’envoi"
+		(
+			"ZQSD : se placer · Souris : regarder · Espace : coup d’envoi "
+			+ "· M : son"
+		)
 	)
 	_prepare_kickoff(0)
 	_update_clock()
@@ -254,7 +348,7 @@ func _begin_play() -> void:
 		"Le jeu continue jusqu’à ton sifflet. Une mauvaise décision nourrit la colère de l’équipe lésée."
 	)
 	hud.set_controls(
-		"ZQSD : courir · Espace : siffler · V : avantage"
+		_live_controls_text()
 	)
 	_take_prepared_kickoff()
 	_update_team_shapes()
@@ -263,6 +357,9 @@ func _begin_play() -> void:
 func _begin_half_time() -> void:
 	phase = Phase.HALF_TIME
 	phase_elapsed = 0.0
+	audio_director.play_whistle("half_time")
+	audio_director.set_decision_mode(true)
+	var deferred_discipline_feedback := _apply_pending_disciplines()
 	for player in perspective_players:
 		player.freeze_actor()
 		player.set_physics_process(false)
@@ -280,15 +377,27 @@ func _begin_half_time() -> void:
 	referee.set_input_enabled(true)
 	hud.set_phase("MI-TEMPS · CHANGEMENT DE CAMP")
 	hud.set_objective(
-		"Les équipes changent de côté. Appuie sur Espace pour donner le coup d’envoi de la seconde période."
+		(
+			"%s Appuie sur Espace pour donner le coup d’envoi de la seconde période."
+			% deferred_discipline_feedback
+		)
+		if not deferred_discipline_feedback.is_empty()
+		else (
+			"Les équipes changent de côté. Appuie sur Espace pour donner "
+			+ "le coup d’envoi de la seconde période."
+		)
 	)
 	hud.set_controls(
-		"ZQSD : se placer · Souris : regarder · Espace : lancer la seconde période"
+		(
+			"ZQSD : se placer · Souris : regarder · Espace : seconde période "
+			+ "· M : son"
+		)
 	)
 
 
 func _start_second_half() -> void:
 	second_half = true
+	audio_director.set_decision_mode(false)
 	_switch_team_ends()
 	_prepare_kickoff(1)
 	for player in perspective_players:
@@ -302,7 +411,7 @@ func _start_second_half() -> void:
 		"Les équipes ont changé de camp ; le jeu reprend à ton signal."
 	)
 	hud.set_controls(
-		"ZQSD : courir · Espace : siffler · V : avantage"
+		_live_controls_text()
 	)
 	_take_prepared_kickoff()
 	_update_team_shapes()
@@ -340,6 +449,8 @@ func _process_simulation(delta: float) -> void:
 		if protest_timer <= 0.0:
 			protest_players.clear()
 			protesting_team_id = -1
+	if bool(current_truth.get("stops_play", false)):
+		return
 	if shape_timer <= 0.0:
 		_update_team_shapes()
 		shape_timer = 0.34
@@ -554,6 +665,10 @@ func _start_ball_flight(
 	loft: float = 0.5,
 	curve: float = 0.0
 ) -> void:
+	audio_director.play_ball_kick(
+		ball.global_position,
+		pending_action == "shot"
+	)
 	ball_in_flight = true
 	ball_flight_elapsed = 0.0
 	ball_flight_duration = duration / MatchIntensityModel.tempo_multiplier(
@@ -622,6 +737,7 @@ func _try_intercept_pass() -> bool:
 	pending_receiver = null
 	pending_offside = false
 	ball.global_position.y = BALL_RADIUS
+	audio_director.play_ball_control(ball.global_position)
 	_set_possession(intercepting_team, interceptor)
 	action_timer = random.randf_range(0.55, 0.85)
 	hud.set_phase("Interception de %s" % interceptor.name)
@@ -647,10 +763,7 @@ func _resolve_ball_flight() -> void:
 	if pending_action == "shot":
 		var shooting_team := possession_team_id
 		if pending_shot_scores:
-			if shooting_team == 0:
-				blue_score += 1
-			else:
-				red_score += 1
+			audio_director.play_goal_chance(shooting_team)
 			_register_truth({
 				"category_id": "restarts",
 				"offence_id": "goal_scored",
@@ -659,14 +772,20 @@ func _resolve_ball_flight() -> void:
 				"offender": pending_shooter,
 				"affected": null,
 				"position": ball.global_position,
+				"scoring_team_id": shooting_team,
+				"awarded_team_id": 1 - shooting_team,
 				"headline": "Le ballon semble avoir franchi la ligne de but.",
 				"var_reviewable": true,
+				"stops_play": true,
 			})
-			hud.set_phase("But ! Le jeu attend ton éventuelle confirmation.")
+			for player in perspective_players:
+				player.freeze_actor()
+			hud.set_phase("BUT POSSIBLE · À TOI DE DÉCIDER")
 			pending_shooter = null
 			pending_action = ""
-			_kickoff_for(1 - shooting_team)
+			possessor = null
 		else:
+			audio_director.play_shot_missed(shooting_team)
 			pending_shooter = null
 			pending_action = ""
 			_goal_kick_for(1 - shooting_team)
@@ -701,6 +820,8 @@ func _generate_foul_event() -> void:
 		random.randf_range(1.65, 1.95),
 		-72.0 if random.randf() < 0.5 else 72.0
 	)
+	audio_director.play_contact(victim.global_position, 0.86)
+	audio_director.play_player_protest(victim.global_position, 0.55)
 	var restart := (
 		"penalty_kick"
 		if _is_penalty_area(victim.global_position, offender.team_id)
@@ -731,6 +852,159 @@ func _generate_foul_event() -> void:
 	action_timer = 0.9
 
 
+func force_debug_event(event_id: String) -> bool:
+	if not debug_tools_active or phase != Phase.PLAYING:
+		return false
+	_prepare_for_debug_event()
+	match event_id:
+		"foul":
+			return _force_debug_foul()
+		"offside":
+			return _force_debug_offside()
+		"goal":
+			return _force_debug_goal()
+		"no_offence":
+			return _force_debug_no_offence()
+	return false
+
+
+func _prepare_for_debug_event() -> void:
+	_clear_var_signal()
+	current_truth.clear()
+	hud.hide_assistant_signal()
+	ball_in_flight = false
+	pending_receiver = null
+	pending_shooter = null
+	pending_action = ""
+	pending_offside = false
+
+
+func _force_debug_foul() -> bool:
+	var victim := possessor
+	if victim == null or not victim.active:
+		victim = _first_active_player(possession_team_id)
+		_set_possession(possession_team_id, victim)
+	if victim == null:
+		return false
+	var offender := _nearest_active_opponent(
+		victim.team_id,
+		victim.global_position
+	)
+	if offender == null:
+		return false
+	offender.global_position = FOOTBALL_LAWS.clamp_inside_pitch(
+		victim.global_position + Vector3(0.78, 0.0, 0.28)
+	)
+	offender.perform_tackle(victim.global_position - offender.global_position)
+	victim.stumble(1.8, 72.0)
+	audio_director.play_contact(victim.global_position, 0.9)
+	audio_director.play_player_protest(victim.global_position, 0.58)
+	var restart := (
+		"penalty_kick"
+		if _is_penalty_area(victim.global_position, offender.team_id)
+		else "direct_free_kick"
+	)
+	_register_truth({
+		"category_id": "fouls",
+		"offence_id": "reckless_tackle",
+		"restart_id": restart,
+		"discipline_id": "yellow_card",
+		"offender": offender,
+		"affected": victim,
+		"position": victim.global_position,
+		"headline": "DEBUG · Tacle téméraire forcé.",
+		"advantage_available": true,
+		"var_reviewable": restart == "penalty_kick",
+	})
+	hud.set_phase("DEBUG · FAUTE FORCÉE")
+	foul_timer = 18.0
+	return true
+
+
+func _force_debug_offside() -> bool:
+	var receiver: PerspectivePlayer3D
+	var candidates := _active_team(possession_team_id)
+	for candidate in candidates:
+		if candidate != possessor and not bool(
+			candidate.get_meta("goalkeeper", false)
+		):
+			receiver = candidate
+	if receiver == null:
+		return false
+	var attack_direction := _attack_direction(possession_team_id)
+	var offside_line := _offside_line_for(possession_team_id)
+	receiver.global_position.z = clampf(
+		offside_line + attack_direction * 2.4,
+		-51.0,
+		51.0
+	)
+	_register_offside_event(receiver)
+	if current_truth.is_empty():
+		return false
+	hud.set_phase("DEBUG · HORS-JEU FORCÉ")
+	return true
+
+
+func _force_debug_goal() -> bool:
+	var shooter := possessor
+	if shooter == null or not shooter.active:
+		shooter = _first_active_player(possession_team_id)
+	if shooter == null:
+		return false
+	var scoring_team_id := shooter.team_id
+	var attack_direction := _attack_direction(scoring_team_id)
+	ball.global_position = Vector3(
+		0.0,
+		BALL_RADIUS,
+		attack_direction * 53.2
+	)
+	_update_ball_shadow()
+	_register_truth({
+		"category_id": "restarts",
+		"offence_id": "goal_scored",
+		"restart_id": "kick_off",
+		"discipline_id": "none",
+		"offender": shooter,
+		"affected": null,
+		"position": ball.global_position,
+		"scoring_team_id": scoring_team_id,
+		"awarded_team_id": 1 - scoring_team_id,
+		"headline": "DEBUG · But potentiel forcé.",
+		"var_reviewable": true,
+		"stops_play": true,
+	})
+	for player in perspective_players:
+		player.freeze_actor()
+	possessor = null
+	hud.set_phase("DEBUG · BUT POSSIBLE")
+	return true
+
+
+func _force_debug_no_offence() -> bool:
+	_register_truth({
+		"category_id": "match_control",
+		"offence_id": "no_offence",
+		"restart_id": "dropped_ball",
+		"discipline_id": "none",
+		"offender": null,
+		"affected": null,
+		"position": ball.global_position,
+		"headline": "DEBUG · Aucun incident sur cette action.",
+		"var_reviewable": false,
+	})
+	hud.set_phase("DEBUG · AUCUNE INFRACTION")
+	return true
+
+
+func _live_controls_text() -> String:
+	var controls := (
+		"ZQSD : courir · Espace : siffler · V : avantage · M : son"
+	)
+	if debug_tools_active:
+		controls += " · F1 faute · F2 hors-jeu · F3 but · F4 rien"
+	return controls
+
+
 func _register_offside_event(receiver: PerspectivePlayer3D) -> void:
 	if not current_truth.is_empty():
 		return
@@ -755,7 +1029,18 @@ func _register_offside_event(receiver: PerspectivePlayer3D) -> void:
 
 func _register_truth(event: Dictionary) -> void:
 	if not current_truth.is_empty():
-		return
+		if event.get("offence_id", "") != "goal_scored":
+			return
+		if current_truth.get("category_id", "") == "offside":
+			current_truth["stops_play"] = true
+			current_truth["headline"] = (
+				"Le ballon est entré, mais l’assistant avait signalé un hors-jeu."
+			)
+			return
+		if current_truth.get("category_id", "") == "fouls":
+			_queue_pending_discipline(current_truth)
+		_clear_var_signal()
+		current_truth.clear()
 	current_truth = event.duplicate()
 	current_truth["age"] = 0.0
 	current_truth["var_alerted"] = false
@@ -766,6 +1051,19 @@ func _register_truth(event: Dictionary) -> void:
 		event_position,
 		event_offender,
 		event_affected
+	)
+	var observation: Dictionary = current_truth["observation_at_event"]
+	current_truth["response_window"] = float(
+		observation.get("response_window", EVENT_VALIDITY_SECONDS)
+	)
+	event_feedback_timer = 0.0
+	hud.show_incident(
+		"ACTION À LIRE",
+		"%s · Espace pour siffler · %.1f s"
+		% [
+			observation.get("label", "Lecture en cours"),
+			current_truth["response_window"],
+		]
 	)
 
 
@@ -780,12 +1078,25 @@ func _update_ground_truth(delta: float) -> void:
 	):
 		current_truth["var_alerted"] = true
 		_announce_var_review(current_truth)
-	var validity := (
-		10.0
-		if current_truth.get("var_alerted", false)
-		else EVENT_VALIDITY_SECONDS
+	var response_window := float(
+		current_truth.get("response_window", EVENT_VALIDITY_SECONDS)
 	)
+	var validity := (
+		response_window + 4.0
+		if current_truth.get("var_alerted", false)
+		else response_window
+	)
+	if not current_truth.get("var_alerted", false):
+		var observation: Dictionary = current_truth.get(
+			"observation_at_event",
+			{}
+		)
+		hud.update_incident_countdown(
+			maxf(0.0, validity - float(current_truth["age"])),
+			str(observation.get("label", ""))
+		)
 	if current_truth["age"] > validity:
+		var expired_truth := current_truth.duplicate()
 		missed_events += 1
 		var affected_team_id := _team_id_for(
 			current_truth.get("affected") as PerspectivePlayer3D
@@ -804,6 +1115,18 @@ func _update_ground_truth(delta: float) -> void:
 			float(reaction["blue_delta"]),
 			float(reaction["red_delta"])
 		)
+		if expired_truth.get("offence_id", "") == "goal_scored":
+			audio_director.play_goal_decision(
+				int(
+					expired_truth.get(
+						"scoring_team_id",
+						possession_team_id
+					)
+				),
+				false
+			)
+		else:
+			audio_director.play_missed_call(affected_team_id)
 		hud.show_incident(
 			"L’ACTION N’A PAS ÉTÉ TRAITÉE",
 			"Le jeu continue, mais l’équipe lésée n’oublie pas."
@@ -812,6 +1135,32 @@ func _update_ground_truth(delta: float) -> void:
 		_clear_var_signal()
 		current_truth.clear()
 		hud.hide_assistant_signal()
+		if expired_truth.get("offence_id", "") == "goal_scored":
+			var scoring_team_id := int(
+				expired_truth.get("scoring_team_id", possession_team_id)
+			)
+			_goal_kick_for(1 - scoring_team_id)
+		elif bool(expired_truth.get("stops_play", false)):
+			var expired_offender := expired_truth.get(
+				"offender"
+			) as PerspectivePlayer3D
+			var awarded_team_id := (
+				1 - expired_offender.team_id
+				if expired_offender != null
+				else possession_team_id
+			)
+			whistle_position = FOOTBALL_LAWS.clamp_inside_pitch(
+				expired_truth.get("position", ball.global_position)
+			)
+			_apply_restart({
+				"offender": expired_offender,
+				"affected": expired_truth.get("affected") as PerspectivePlayer3D,
+				"restart_id": expired_truth.get(
+					"restart_id",
+					"dropped_ball"
+				),
+				"awarded_team_id": awarded_team_id,
+			})
 
 
 func _on_var_review_requested() -> void:
@@ -876,6 +1225,10 @@ func _on_advantage_requested() -> void:
 
 	var offender := current_truth.get("offender") as PerspectivePlayer3D
 	var affected := current_truth.get("affected") as PerspectivePlayer3D
+	var deferred_discipline_id: String = current_truth.get(
+		"discipline_id",
+		"none"
+	)
 	var awarded_team := (
 		affected.team_id
 		if affected != null
@@ -888,14 +1241,15 @@ func _on_advantage_requested() -> void:
 		"offender": offender,
 		"affected": affected,
 		"restart_id": "play_on",
-		"discipline_id": "none",
+		"discipline_id": deferred_discipline_id,
 		"secondary_discipline_id": "none",
 		"awarded_team_id": awarded_team,
 		"simplified": true,
+		"discipline_explicit": true,
+		"discipline_deferred": deferred_discipline_id != "none",
 	}
 	var expected := _expected_decision()
 	expected["restart_id"] = "play_on"
-	expected["discipline_id"] = "none"
 	var evaluated := decision.duplicate()
 	evaluated["offender_team_id"] = _team_id_for(offender)
 	evaluated["offender_instance_id"] = (
@@ -905,6 +1259,10 @@ func _on_advantage_requested() -> void:
 	)
 	var record := _evaluate_decision(evaluated, expected)
 	decisions.append(record)
+	_queue_pending_discipline({
+		"offender": offender,
+		"discipline_id": deferred_discipline_id,
+	})
 	_apply_tension_delta(
 		float(record["blue_delta"]),
 		float(record["red_delta"])
@@ -912,11 +1270,26 @@ func _on_advantage_requested() -> void:
 	_clear_var_signal()
 	current_truth.clear()
 	_start_team_reaction(record)
+	audio_director.play_advantage(awarded_team)
 	hud.set_phase("AVANTAGE · LE JEU CONTINUE")
-	hud.set_objective("L’équipe victime conserve le ballon.")
+	hud.set_objective(
+		(
+			"L’équipe victime conserve le ballon · %s à notifier au prochain arrêt."
+			% OfficiatingCatalog.label_for(
+				OfficiatingCatalog.disciplines(),
+				deferred_discipline_id
+			)
+		)
+		if deferred_discipline_id != "none"
+		else "L’équipe victime conserve le ballon."
+	)
 	hud.show_incident(
 		"Avantage",
-		"Décision signalée sans interrompre le jeu."
+		(
+			"Décision signalée · sanction mémorisée pour le prochain arrêt."
+			if deferred_discipline_id != "none"
+			else "Décision signalée sans interrompre le jeu."
+		)
 	)
 	event_feedback_timer = 2.4
 	action_timer = maxf(action_timer, 0.8)
@@ -940,6 +1313,7 @@ func _player_display_name(player: PerspectivePlayer3D) -> String:
 
 func _on_whistle_requested() -> void:
 	if phase == Phase.PRE_MATCH:
+		audio_director.play_whistle("kickoff")
 		_begin_play()
 		hud.show_incident(
 			"COUP D’ENVOI",
@@ -948,6 +1322,7 @@ func _on_whistle_requested() -> void:
 		event_feedback_timer = 1.8
 		return
 	if phase == Phase.HALF_TIME:
+		audio_director.play_whistle("kickoff")
 		_start_second_half()
 		hud.show_incident(
 			"COUP D’ENVOI · 2E PÉRIODE",
@@ -959,6 +1334,8 @@ func _on_whistle_requested() -> void:
 		hud.set_controls("Le coup de sifflet sera disponible dès la reprise du jeu.")
 		return
 
+	audio_director.play_whistle("stoppage")
+	audio_director.set_decision_mode(true)
 	phase = Phase.STOPPED_FOR_DECISION
 	phase_elapsed = 0.0
 	whistle_position = FOOTBALL_LAWS.clamp_inside_pitch(
@@ -971,6 +1348,7 @@ func _on_whistle_requested() -> void:
 	for assistant in assistants:
 		assistant.set_process(false)
 	referee.set_inspection_enabled()
+	var deferred_discipline_feedback := _apply_pending_disciplines()
 	var target_position: Vector3 = whistle_position
 	var truth_offender: PerspectivePlayer3D
 	var truth_affected: PerspectivePlayer3D
@@ -982,6 +1360,11 @@ func _on_whistle_requested() -> void:
 		target_position,
 		truth_offender,
 		truth_affected
+	)
+	var event_observation: Dictionary = (
+		current_truth.get("observation_at_event", whistle_observation)
+		if not current_truth.is_empty()
+		else whistle_observation
 	)
 	var candidates: Array[PerspectivePlayer3D] = _players_near_ball(
 		perspective_players.size()
@@ -1006,17 +1389,30 @@ func _on_whistle_requested() -> void:
 			if not current_truth.is_empty()
 			else "Tu as choisi d’arrêter le jeu."
 		),
-		"evidence": _observation_summary(whistle_observation, assistant_signal),
-		"suggested_category": "offside" if assistant_signal else "fouls",
+		"evidence": (
+			_observation_summary(event_observation, assistant_signal)
+			+ (
+				"\n%s" % deferred_discipline_feedback
+				if not deferred_discipline_feedback.is_empty()
+				else ""
+			)
+		),
+		"suggested_category": (
+			current_truth.get("category_id", "fouls")
+			if not current_truth.is_empty()
+			else "match_control"
+		),
 		"suggested_offence": (
-			"offside_interfering_play"
-			if assistant_signal
-			else "careless_tackle"
+			current_truth.get("offence_id", "no_offence")
+			if not current_truth.is_empty()
+			else "no_offence"
 		),
 		"default_awarded_team_id": (
 			truth_affected.team_id
 			if truth_affected != null
-			else possession_team_id
+			else 1 - truth_offender.team_id
+			if truth_offender != null
+			else -1
 		),
 		"home_team_name": stadium_profile["short_name"],
 		"away_team_name": "Visiteurs",
@@ -1027,7 +1423,7 @@ func _on_whistle_requested() -> void:
 		"Le jeu est figé, mais tu peux encore marcher autour de l’action et identifier le joueur."
 	)
 	hud.set_controls(
-		"Inspecte librement · 1 Faute · 2 Hors-jeu · E identifier · Entrée confirmer"
+		"1 Faute · 2 Hors-jeu · G But · N Aucune infraction · E identifier"
 	)
 	hud.hide_incident()
 	hud.set_decision_mode(true)
@@ -1042,6 +1438,7 @@ func _on_whistle_requested() -> void:
 
 func _on_decision_submitted(decision: Dictionary) -> void:
 	decision = decision.duplicate()
+	var resolved_truth := current_truth.duplicate()
 	var simple_offender := decision["offender"] as PerspectivePlayer3D
 	var expected := _expected_decision()
 	var evaluated_decision := decision.duplicate()
@@ -1077,12 +1474,30 @@ func _on_decision_submitted(decision: Dictionary) -> void:
 		discipline_feedback += " · %s" % affected.apply_discipline(
 			secondary_discipline_id
 		)
+	_apply_score_decision(decision)
 	_apply_restart(decision)
 	_hide_restart_marker()
 	_apply_tension_delta(
 		float(record["blue_delta"]),
 		float(record["red_delta"])
 	)
+	if resolved_truth.get("offence_id", "") == "goal_scored":
+		audio_director.play_goal_decision(
+			int(
+				resolved_truth.get(
+					"scoring_team_id",
+					possession_team_id
+				)
+			),
+			decision.get("offence_id", "") == "goal_scored"
+		)
+	else:
+		audio_director.play_decision_reaction(
+			float(record["quality"]),
+			float(record["blue_delta"]),
+			float(record["red_delta"]),
+			int(decision.get("awarded_team_id", -1))
+		)
 	_clear_var_signal()
 	current_truth.clear()
 	for assistant in assistants:
@@ -1093,6 +1508,7 @@ func _on_decision_submitted(decision: Dictionary) -> void:
 	hud.hide_assistant_signal()
 	officiating_panel.hide_panel()
 	hud.set_decision_mode(false)
+	audio_director.set_decision_mode(false)
 	phase = Phase.PLAYING
 	phase_elapsed = 0.0
 	referee.set_input_enabled(true)
@@ -1111,7 +1527,7 @@ func _on_decision_submitted(decision: Dictionary) -> void:
 		"%s · %s" % [record["reaction_detail"], discipline_feedback]
 	)
 	hud.set_controls(
-		"ZQSD : courir · Espace : siffler · V : avantage"
+		_live_controls_text()
 	)
 	hud.show_incident(
 		record["reaction_title"],
@@ -1158,6 +1574,53 @@ func _expected_decision() -> Dictionary:
 	return expected
 
 
+func _apply_score_decision(decision: Dictionary) -> void:
+	if (
+		decision.get("offence_id", "") != "goal_scored"
+		or current_truth.get("offence_id", "") != "goal_scored"
+	):
+		return
+	var scoring_team_id := int(
+		current_truth.get(
+			"scoring_team_id",
+			_team_id_for(current_truth.get("offender") as PerspectivePlayer3D)
+		)
+	)
+	if scoring_team_id == 0:
+		blue_score += 1
+	elif scoring_team_id == 1:
+		red_score += 1
+	_update_clock()
+
+
+func _apply_pending_disciplines() -> String:
+	if pending_disciplines.is_empty():
+		return ""
+	var feedback := PackedStringArray()
+	for pending in pending_disciplines:
+		var offender := pending.get("offender") as PerspectivePlayer3D
+		if offender == null or not is_instance_valid(offender) or not offender.active:
+			continue
+		feedback.append(
+			offender.apply_discipline(str(pending.get("discipline_id", "none")))
+		)
+	pending_disciplines.clear()
+	if feedback.is_empty():
+		return ""
+	return "Sanction différée · %s" % " · ".join(feedback)
+
+
+func _queue_pending_discipline(event: Dictionary) -> void:
+	var discipline_id := str(event.get("discipline_id", "none"))
+	var offender := event.get("offender") as PerspectivePlayer3D
+	if discipline_id == "none" or offender == null or not offender.active:
+		return
+	pending_disciplines.append({
+		"offender": offender,
+		"discipline_id": discipline_id,
+	})
+
+
 func _evaluate_decision(
 	decision: Dictionary,
 	expected: Dictionary
@@ -1166,6 +1629,12 @@ func _evaluate_decision(
 		expected,
 		decision,
 		match_importance_id
+	)
+	var scoring := DECISION_SCORING.score(
+		float(reaction["quality"]),
+		expected,
+		whistle_observation,
+		EVENT_VALIDITY_SECONDS
 	)
 	var blue_delta: float = reaction["blue_delta"]
 	var red_delta: float = reaction["red_delta"]
@@ -1189,6 +1658,12 @@ func _evaluate_decision(
 
 	return {
 		"quality": reaction["quality"],
+		"technical_score": scoring["technical_score"],
+		"positioning_score": scoring["positioning_score"],
+		"response_score": scoring["response_score"],
+		"total_score": scoring["total_score"],
+		"observation_quality": scoring["observation_quality"],
+		"response_seconds": scoring["response_seconds"],
 		"blue_delta": blue_delta,
 		"red_delta": red_delta,
 		"reaction_title": reaction_title,
@@ -1198,13 +1673,15 @@ func _evaluate_decision(
 			_format_delta(red_delta),
 		],
 		"short_feedback": (
-			"Attendu : %s · %s"
+			"Attendu : %s · %s · placement %d/25 · réaction %d/15"
 			% [
 				OfficiatingCatalog.offence(expected["offence_id"])["label"],
 				OfficiatingCatalog.label_for(
 					OfficiatingCatalog.restarts(),
 					expected["restart_id"]
 				),
+				scoring["positioning_score"],
+				scoring["response_score"],
 			]
 		),
 		}
@@ -1242,6 +1719,7 @@ func _refresh_tension_hud() -> void:
 		MatchIntensityModel.control_state(blue_tension, red_tension),
 		match_profile["label"]
 	)
+	audio_director.set_tension(blue_tension, red_tension)
 
 
 func _start_team_reaction(record: Dictionary) -> void:
@@ -1274,6 +1752,11 @@ func _start_team_reaction(record: Dictionary) -> void:
 		if protest_players.size() >= protest_count:
 			break
 	protest_timer = 2.0 + team_tension * 0.035
+	if not protest_players.is_empty():
+		audio_director.play_player_protest(
+			protest_players[0].global_position,
+			clampf(team_tension / 75.0, 0.45, 1.0)
+		)
 
 
 func _update_protesters() -> void:
@@ -1320,7 +1803,6 @@ func _apply_restart(decision: Dictionary) -> void:
 		elif offender != null:
 			awarded_team = 1 - offender.team_id
 	if restart_id == "kick_off":
-		awarded_team = 1 - possession_team_id
 		_kickoff_for(awarded_team)
 		return
 	if restart_id == "penalty_kick":
@@ -2004,6 +2486,9 @@ func _finish_match(reason: String = "") -> void:
 	phase = Phase.RESULTS
 	phase_elapsed = 0.0
 	match_end_reason = reason
+	audio_director.set_decision_mode(false)
+	audio_director.play_whistle("full_time")
+	_apply_pending_disciplines()
 	for player in perspective_players:
 		player.freeze_actor()
 		player.set_physics_process(false)
@@ -2019,7 +2504,9 @@ func _finish_match(reason: String = "") -> void:
 	hud.set_objective(
 		reason
 		if not reason.is_empty()
-		else "Le rapport résume l’état émotionnel du match, pas une note d’arbitrage."
+		else (
+			"Le rapport résume tes décisions, ton placement et l’état émotionnel du match."
+		)
 	)
 	results_panel.show_result(_aggregate_match_result())
 
@@ -2040,6 +2527,58 @@ func _aggregate_match_result() -> Dictionary:
 		outcome = "MATCH HORS DE CONTRÔLE"
 	if not match_end_reason.is_empty():
 		outcome = "MATCH INTERROMPU"
+	var decision_score_total := 0
+	var positioning_score_total := 0
+	var response_score_total := 0
+	for decision in decisions:
+		decision_score_total += int(decision.get("total_score", 0))
+		positioning_score_total += int(
+			decision.get("positioning_score", 0)
+		)
+		response_score_total += int(decision.get("response_score", 0))
+	var decision_count := decisions.size()
+	var feedback := PackedStringArray()
+	feedback.append("%d décision(s) appliquée(s)." % decision_count)
+	if decision_count > 0:
+		feedback.append(
+			"Évaluation moyenne : %d/100 · placement %d/25 · réaction %d/15."
+			% [
+				roundi(float(decision_score_total) / decision_count),
+				roundi(float(positioning_score_total) / decision_count),
+				roundi(float(response_score_total) / decision_count),
+			]
+		)
+	feedback.append(
+		"%d événement(s) pertinent(s) non traité(s)." % missed_events
+	)
+	feedback.append(
+		"Score sportif : %s %d — %d Visiteurs."
+		% [
+			stadium_profile["short_name"],
+			blue_score,
+			red_score,
+		]
+	)
+	feedback.append(
+		match_end_reason
+		if not match_end_reason.is_empty()
+		else "État final : %s." % final_state["description"]
+	)
+	var can_continue := (
+		game_mode_id != GAME_MODE_CATALOG.QUICK_MATCH_ID
+		and not GAME_MODE_CATALOG.is_last_stage(
+			game_mode_id,
+			game_mode_stage_index
+		)
+	)
+	if (
+		game_mode_id != GAME_MODE_CATALOG.QUICK_MATCH_ID
+		and not can_continue
+	):
+		feedback.append(
+			"%s terminée : toutes les affectations ont été arbitrées."
+			% game_mode_profile["short_label"]
+		)
 
 	return {
 		"tension_mode": true,
@@ -2049,31 +2588,72 @@ func _aggregate_match_result() -> Dictionary:
 		"blue_peak_tension": roundi(blue_peak_tension),
 		"red_peak_tension": roundi(red_peak_tension),
 		"importance_label": match_profile["label"],
-		"feedback": PackedStringArray([
-			"%d décision(s) appliquée(s)." % decisions.size(),
-			"%d événement(s) pertinent(s) non traité(s)." % missed_events,
-			"Score sportif : %s %d — %d Visiteurs." % [
-				stadium_profile["short_name"],
-				blue_score,
-				red_score,
-			],
-			(
-				match_end_reason
-				if not match_end_reason.is_empty()
-				else "État final : %s." % final_state["description"]
-			),
-		]),
+		"feedback": feedback,
+		"result_context": GAME_MODE_CATALOG.context_label(
+			game_mode_id,
+			game_mode_stage_index
+		),
+		"can_continue": can_continue,
+		"continue_label": "Affectation suivante",
+		"replay_label": (
+			"Rejouer"
+			if game_mode_id == GAME_MODE_CATALOG.QUICK_MATCH_ID
+			else "Rejouer l’affectation"
+		),
 		"explanation": (
-			"Les mauvaises décisions, les sanctions incohérentes et les actions ignorées "
-			+ "font monter la tension. L’enjeu choisi amplifie les réactions et ralentit "
-			+ "le retour au calme."
+			"Les mauvaises décisions, les sanctions incohérentes et les actions "
+			+ "ignorées font monter la tension. La proximité, l’angle de vue et le "
+			+ "temps de réaction alimentent désormais l’évaluation de l’arbitre."
 		),
 	}
 
 
 func _request_main_menu() -> void:
+	_leave_pause_state()
 	referee.set_input_enabled(false)
 	main_menu_requested.emit()
+
+
+func _open_pause_menu() -> void:
+	if pause_open or phase == Phase.RESULTS:
+		return
+	pause_open = true
+	referee.set_input_enabled(false)
+	pause_menu.open_menu(
+		GAME_MODE_CATALOG.context_label(
+			game_mode_id,
+			game_mode_stage_index
+		)
+	)
+	get_tree().paused = true
+
+
+func _resume_from_pause() -> void:
+	if not pause_open:
+		return
+	_leave_pause_state()
+	if phase == Phase.STOPPED_FOR_DECISION:
+		referee.set_inspection_enabled()
+	elif phase != Phase.RESULTS:
+		referee.set_input_enabled(true)
+
+
+func _restart_from_pause() -> void:
+	_leave_pause_state()
+	_start_match()
+
+
+func _return_to_menu_from_pause() -> void:
+	_leave_pause_state()
+	_request_main_menu()
+
+
+func _leave_pause_state() -> void:
+	if get_tree() != null:
+		get_tree().paused = false
+	pause_open = false
+	if is_instance_valid(pause_menu):
+		pause_menu.close_menu()
 
 
 func _build_environment() -> void:

@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://ui/main_menu/main_menu.gd" id="1_menu"]
 [ext_resource type="Script" path="res://ui/main_menu/menu_background.gd" id="2_background"]
@@ -43,6 +43,8 @@ content_margin_left = 4.0
 content_margin_top = 8.0
 content_margin_right = 4.0
 content_margin_bottom = 8.0
+
+[sub_resource type="ButtonGroup" id="ModeButtonGroup"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -131,6 +133,60 @@ theme_override_colors/font_color = Color(0.709804, 0.721569, 0.658824, 1)
 theme_override_font_sizes/font_size = 19
 text = "Observe. Siffle. Assume."
 
+[node name="ModeGap" type="Control" parent="PageMargin/Page/Content/Intro"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
+[node name="ModeTitle" type="Label" parent="PageMargin/Page/Content/Intro"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.737255, 0.74902, 0.682353, 1)
+theme_override_font_sizes/font_size = 13
+text = "MODE DE JEU"
+
+[node name="ModeButtons" type="HBoxContainer" parent="PageMargin/Page/Content/Intro"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="QuickMatchButton" type="Button" parent="PageMargin/Page/Content/Intro/ModeButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ModeButtonGroup")
+text = "Partie rapide"
+metadata/mode_id = "quick_match"
+
+[node name="TournamentButton" type="Button" parent="PageMargin/Page/Content/Intro/ModeButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = SubResource("ModeButtonGroup")
+text = "Tournoi"
+metadata/mode_id = "world_tournament"
+
+[node name="CareerButton" type="Button" parent="PageMargin/Page/Content/Intro/ModeButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = SubResource("ModeButtonGroup")
+text = "Carrière"
+metadata/mode_id = "international_career"
+
+[node name="ModeDescription" type="Label" parent="PageMargin/Page/Content/Intro"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.572549, 0.588235, 0.529412, 1)
+theme_override_font_sizes/font_size = 13
+text = "Choisis librement l’enjeu et le stade pour jouer un seul match."
+autowrap_mode = 2
+
 [node name="SetupCard" type="PanelContainer" parent="PageMargin/Page/Content"]
 custom_minimum_size = Vector2(410, 0)
 layout_mode = 2
@@ -145,6 +201,7 @@ theme_override_font_sizes/font_size = 25
 text = "Préparer le match"
 
 [node name="SetupSubtitle" type="Label" parent="PageMargin/Page/Content/SetupCard/Setup"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.631373, 0.647059, 0.588235, 1)
 theme_override_font_sizes/font_size = 14
@@ -155,6 +212,7 @@ custom_minimum_size = Vector2(0, 6)
 layout_mode = 2
 
 [node name="ImportanceTitle" type="Label" parent="PageMargin/Page/Content/SetupCard/Setup"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.737255, 0.74902, 0.682353, 1)
 theme_override_font_sizes/font_size = 13
@@ -192,6 +250,38 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.572549, 0.588235, 0.529412, 1)
 theme_override_font_sizes/font_size = 12
 text = "Bruxelles · 28 400 places"
+
+[node name="SeedTitle" type="Label" parent="PageMargin/Page/Content/SetupCard/Setup"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.737255, 0.74902, 0.682353, 1)
+theme_override_font_sizes/font_size = 13
+text = "Graine du match"
+
+[node name="SeedRow" type="HBoxContainer" parent="PageMargin/Page/Content/SetupCard/Setup"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SeedInput" type="LineEdit" parent="PageMargin/Page/Content/SetupCard/Setup/SeedRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Nombre positif"
+tooltip_text = "La même graine reproduit les mêmes choix aléatoires."
+
+[node name="NewSeedButton" type="Button" parent="PageMargin/Page/Content/SetupCard/Setup/SeedRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(112, 42)
+layout_mode = 2
+text = "Nouvelle"
+tooltip_text = "Générer une nouvelle graine de match."
+
+[node name="DebugCheck" type="CheckButton" parent="PageMargin/Page/Content/SetupCard/Setup"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Activer les outils de test"
+tooltip_text = "F1 faute · F2 hors-jeu · F3 but · F4 aucune infraction"
 
 [node name="SectionGapB" type="Control" parent="PageMargin/Page/Content/SetupCard/Setup"]
 custom_minimum_size = Vector2(0, 6)

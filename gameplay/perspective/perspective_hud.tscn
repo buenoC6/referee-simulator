@@ -190,13 +190,27 @@ horizontal_alignment = 2
 [node name="LiveReading" type="Control" parent="."]
 unique_name_in_owner = true
 visible = false
+offset_left = 24.0
+offset_top = 112.0
+offset_right = 250.0
+offset_bottom = 162.0
+mouse_filter = 2
 
 [node name="DistanceLabel" type="Label" parent="LiveReading"]
 unique_name_in_owner = true
+offset_right = 226.0
+offset_bottom = 22.0
+theme_override_colors/font_color = Color(0.52549, 0.937255, 0.67451, 1)
+theme_override_font_sizes/font_size = 13
 text = "Distance 0 m"
 
 [node name="ViewLabel" type="Label" parent="LiveReading"]
 unique_name_in_owner = true
+offset_top = 24.0
+offset_right = 226.0
+offset_bottom = 48.0
+theme_override_colors/font_color = Color(0.52549, 0.937255, 0.67451, 1)
+theme_override_font_sizes/font_size = 12
 text = "Dans l’axe"
 
 [node name="Crosshair" type="Label" parent="."]
